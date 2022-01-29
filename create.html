@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+</script>
+<script type="text/javascript">
+
+
+function badAccount(name) {
+  // TODO: more complete validity check
+  return (name.length !== 12);
+}
+  
+$(document).ready(function () {
+  $('#create').click(function(){
+    const esr_gen_base = "https://cc42.xyz";
+    let testnet_checkbox = document.getElementById("testmode");
+    if (testnet_checkbox.checked) {
+      var esr_gen_url = esr_gen_base + '/qrt';
+      var contract = "histrdotsuds";
+    } else {
+      var esr_gen_url = esr_gen_base + '/qr';
+      var contract = "rainbowproto";
+    }
+    var type = document.getElementById("type");
+    let badgees;
+    if (multiple_checkbox.checked) {
+        badgees = document.getElementById("badgee_account").value.split("\n");
+    } else {
+      badgees = [document.getElementById("badgee_account").value];
+    }
+    let actions=[];
+    actions.push({
+      account: contract, name: "create",
+      data: {
+        issuer: document.getElementById("issuer_account").value,
+        maximum_supply: (document.getElementById("max_supply").value + " " +
+                         document.getElementById("token_symbol"),
+        membership_mgr: document.getElementById("member_mgr").value,
+        withdrawal_mgr: document.getElementById("withdraw_mgr").value,
+        withdraw_to: document.getElementById("withdraw_to").value,
+        freeze_mgr: document.getElementById("freeze_mgr").value,
+        redeem_locked_until: document.getElementById("redeem_lock_until").value,
+        config_locked_until: document.getElementById("config_lock_until").value,
+        cred_limit_symbol: document.getElementById("cred_lim").value,
+        pos_limit_symbol: document.getElementById("max_lim").value,
+
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    $.ajax({
+      type: "POST",
+      url: esr_gen_url,
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#clear').click(function(){
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
+  });
+});
+</script>
+
+<style>
+body {
+  font-size: 100%;
+}
+@media only screen and (max-width: 740px) {
+  body {
+    font-size: 150%;
+  }
+  .button {
+    text-align: center;
+    font-size: 100%;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<h2>create token</h2>
+
+<label for="testmode">Use Testnet:</label> 
+<input type="checkbox" id="testmode" >
+</p>
+
+<form name="create-token-data" class="create-token-form" ">
+
+  <label for="issuer_account">Issuer Account:<input type="text" maxlength="12" id="issuer_account" name="issuer_account" value="">
+  </label><br>
+  <label for="token_symbol">Token symbol:<input type="text" id="token_symbol" name="token_symbol" value="">
+  </label><br>
+  <label for="max_supply">Maximum supply:<input type="text" id="max_supply" name="max_supply" value="">
+  </label><br>
+  <label for="member_mgr">Membership manager:<input type="text" id="member_mgr" name="member_mgr" value="">
+  </label><br>
+  <label for="withdraw_mgr">Withdrawal manager:<input type="text" id="withdraw_mgr" name="withdraw_mgr" value="">
+  </label><br>
+  <label for="withdraw_to">Withdraw-to account:<input type="text" id="withdraw_to" name="withdraw_to" value="">
+  </label><br>
+  <label for="freeze_mgr">Freeze manager:<input type="text" id="freeze_mgr" name="freeze_mgr" value="">
+  </label><br>
+  <label for="redeem_lock_until">Redeem locked until:<input type="text" id="redeem_lock_until" name="redeem_lock_until" value="">
+  </label><br>
+  <label for="config_lock_until">Configuration locked until:<input type="text" id="config_lock_until" name="config_lock_until" value="">
+  </label><br>
+  <label for="cred_lim">Credit limit symbol:<input type="text" id="cred_lim" name="cred_lim" value="">
+  </label><br>
+  <label for="max_lim">Maximum limit symbol:<input type="text" id="max_lim" name="max_lim" value="">
+  </label><br>
+
+  <div id="button-wrapper">
+    <input type="button" id="create" value="Create QR" class="button">
+    <input type="button" id="clear" value="Clear result" class="button">
+  </div>
+</form>
+
+<div id=qrcode> </div>
+<div id=esr> </div>
+
+</body>
+</html>
+
