@@ -22,20 +22,13 @@ $(document).ready(function () {
       var esr_gen_url = esr_gen_base + '/qr';
       var contract = "rainbowproto";
     }
-    var type = document.getElementById("type");
-    let badgees;
-    if (multiple_checkbox.checked) {
-        badgees = document.getElementById("badgee_account").value.split("\n");
-    } else {
-      badgees = [document.getElementById("badgee_account").value];
-    }
     let actions=[];
     actions.push({
       account: contract, name: "create",
       data: {
         issuer: document.getElementById("issuer_account").value,
         maximum_supply: (document.getElementById("max_supply").value + " " +
-                         document.getElementById("token_symbol"),
+                         document.getElementById("token_symbol").value),
         membership_mgr: document.getElementById("member_mgr").value,
         withdrawal_mgr: document.getElementById("withdraw_mgr").value,
         withdraw_to: document.getElementById("withdraw_to").value,
