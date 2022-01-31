@@ -10,17 +10,43 @@ function badAccount(name) {
   // TODO: more complete validity check
   return (name.length !== 12);
 }
-  
+var testnet_checkbox;
+var contract;
+function testnet_status () {
+    testnet_checkbox = document.getElementById("testmode");
+    if (testnet_checkbox.checked) {
+      contract = "histrdotsuds";
+    } else {
+      contract = "rainbowproto";
+    }
+    contract_account.innerHTML = contract;
+}
+
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
 $(document).ready(function () {
+  testnet_status();
+  $('#testmode').click(function(){
+    testnet_status();
+  });
   $('#create').click(function(){
     const esr_gen_base = "https://cc42.xyz";
-    let testnet_checkbox = document.getElementById("testmode");
     if (testnet_checkbox.checked) {
       var esr_gen_url = esr_gen_base + '/qrt';
-      var contract = "histrdotsuds";
     } else {
       var esr_gen_url = esr_gen_base + '/qr';
-      var contract = "rainbowproto";
     }
     let actions=[];
     actions.push({
@@ -66,6 +92,14 @@ $(document).ready(function () {
     qrcode.innerHTML = ``;
     esr.innerHTML = ``;
   });
+  $('#1').click(function(){
+  var x = document.getElementById("cc");
+  if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+  });
 });
 </script>
 
@@ -82,23 +116,69 @@ body {
     font-size: 100%;
   }
 }
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
 
 </style>
 </head>
 <body>
 
-<h2>create token</h2>
+<h2>Rainbow token management</h2>
 
-<label for="testmode">Use Testnet:</label> 
-<input type="checkbox" id="testmode" >
-</p>
-
-<form name="create-token-data" class="create-token-form" ">
-
+<div style="background-color:Aquamarine;">
+  <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
+  </p>
+  <label for="contract_account" >Master Contract: <output id="contract_account"></output>
+   </label><br>
   <label for="issuer_account">Issuer Account:<input type="text" maxlength="12" id="issuer_account" name="issuer_account" value="">
-  </label><br>
+   </label><br>
   <label for="token_symbol">Token symbol:<input type="text" id="token_symbol" name="token_symbol" value="">
-  </label><br>
+   </label><br>
+</div>
+
+<div class="tab">
+  <button class="tablinks" onclick="openTab(event, 'Create')">Create</button>
+  <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
+  <button class="tablinks" onclick="openTab(event, 'Stakes')">Stakes</button>
+</div>
+
+
+<div id="Create" class="tabcontent" style="background-color:Beige;" >
+  <h3>Token Creation</h3>
   <label for="max_supply">Maximum supply:<input type="text" id="max_supply" name="max_supply" value="">
   </label><br>
   <label for="member_mgr">Membership manager:<input type="text" id="member_mgr" name="member_mgr" value="">
@@ -117,12 +197,23 @@ body {
   </label><br>
   <label for="max_lim">Maximum limit symbol:<input type="text" id="max_lim" name="max_lim" value="">
   </label><br>
-
   <div id="button-wrapper">
     <input type="button" id="create" value="Create QR" class="button">
     <input type="button" id="clear" value="Clear result" class="button">
   </div>
-</form>
+
+</div>
+
+<div id="Approve" class="tabcontent">
+  <h3>Token Approval</h3>
+  <label for="approve">Approve:</label> <input type="checkbox" id="approve" >
+
+</div>
+
+<div id="Stakes" class="tabcontent">
+  <h3>Define Stakes</h3>
+  <p>stakey stakey stakey.</p>
+</div>
 
 <div id=qrcode> </div>
 <div id=esr> </div>
