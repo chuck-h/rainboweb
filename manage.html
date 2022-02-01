@@ -1,25 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
-</script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
 <script type="text/javascript">
 
 
-function badAccount(name) {
-  // TODO: more complete validity check
-  return (name.length !== 12);
-}
-var testnet_checkbox;
-var contract;
+var testnet_checked;
+var test_contract = "histrdotsuds";
+var mainnet_contract = "rainbowproto";
 function testnet_status () {
-    testnet_checkbox = document.getElementById("testmode");
-    if (testnet_checkbox.checked) {
-      contract = "histrdotsuds";
-    } else {
-      contract = "rainbowproto";
-    }
-    contract_account.innerHTML = contract;
+  testnet_checked = document.getElementById("testmode").checked;
+  document.getElementById("contract_account").value = testnet_checked ? test_contract : mainnet_contract;
 }
 
 function openTab(evt, tabName) {
@@ -34,6 +26,12 @@ function openTab(evt, tabName) {
   }
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
+  clearQR();
+}
+
+function clearQR() {
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
 }
 
 $(document).ready(function () {
@@ -41,26 +39,51 @@ $(document).ready(function () {
   $('#testmode').click(function(){
     testnet_status();
   });
+  $('#contract_account').change(function(){
+    if( testnet_checked ) {
+      test_contract = document.getElementById("contract_account").value;
+    } else {
+      mainnet_contract = document.getElementById("contract_account").value;
+    }
+  });
   $('#create').click(function(){
     const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checkbox.checked) {
+    if (testnet_checked) {
       var esr_gen_url = esr_gen_base + '/qrt';
     } else {
       var esr_gen_url = esr_gen_base + '/qr';
     }
+
+    const allowall = "allowallacct";    
+    let membership_mgr = !document.getElementById("closed").checked ? allowall :
+                         document.getElementById("member_mgr").value;
+    let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
+                         document.getElementById("withdraw_mgr").value;
+    let withdraw_to = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
+                      document.getElementById("withdraw_to").value;
+    let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
+                     document.getElementById("freeze_mgr").value;
+    const redeem_date_input = document.getElementById("redeem_lock_until").value;
+    const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
+    const config_date_input = document.getElementById("config_lock_until").value;
+    const config_date = new Date(config_date_input=="" ? Date.now() : config_date_input);
+    let cred_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
+                            document.getElementById("cred_lim").value;
+    let pos_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
+                           document.getElementById("max_lim").value;
     let actions=[];
     actions.push({
-      account: contract, name: "create",
+      account: document.getElementById("contract_account").value, name: "create",
       data: {
         issuer: document.getElementById("issuer_account").value,
         maximum_supply: (document.getElementById("max_supply").value + " " +
                          document.getElementById("token_symbol").value),
-        membership_mgr: document.getElementById("member_mgr").value,
-        withdrawal_mgr: document.getElementById("withdraw_mgr").value,
-        withdraw_to: document.getElementById("withdraw_to").value,
-        freeze_mgr: document.getElementById("freeze_mgr").value,
-        redeem_locked_until: document.getElementById("redeem_lock_until").value,
-        config_locked_until: document.getElementById("config_lock_until").value,
+        membership_mgr: membership_mgr,
+        withdrawal_mgr: withdrawal_mgr,
+        withdraw_to: withdraw_to,
+        freeze_mgr: freeze_mgr,
+        redeem_locked_until: redeem_date.toISOString(),
+        config_locked_until: config_date.toISOString(),
         cred_limit_symbol: document.getElementById("cred_lim").value,
         pos_limit_symbol: document.getElementById("max_lim").value,
 
@@ -90,14 +113,14 @@ $(document).ready(function () {
   });
   $('#approve').click(function(){
     const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checkbox.checked) {
+    if (testnet_checked) {
       var esr_gen_url = esr_gen_base + '/qrt';
     } else {
       var esr_gen_url = esr_gen_base + '/qr';
     }
     let actions=[];
     actions.push({
-      account: contract, name: "approve",
+      account: document.getElementById("contract_account").value, name: "approve",
       data: {
         symbolcode: document.getElementById("token_symbol").value,
         reject_and_clear: !document.getElementById("approve_checked").checked,
@@ -127,14 +150,14 @@ $(document).ready(function () {
   });
   $('#stake').click(function(){
     const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checkbox.checked) {
+    if (testnet_checked) {
       var esr_gen_url = esr_gen_base + '/qrt';
     } else {
       var esr_gen_url = esr_gen_base + '/qr';
     }
     let actions=[];
     actions.push({
-      account: contract, name: "setstake",
+      account: document.getElementById("contract_account").value, name: "setstake",
       data: {
         token_bucket: (document.getElementById("bucket").value + " " +
                          document.getElementById("token_symbol").value),
@@ -142,7 +165,7 @@ $(document).ready(function () {
                          document.getElementById("stake_symbol").value),
         stake_token_contract: document.getElementById("stake_contract").value,
         stake_to: document.getElementById("stake_to").value,
-        proportional: !document.getElementById("proportional").checked,
+        proportional: document.getElementById("proportional").checked,
         memo: document.getElementById("stake_memo").value,
       },
       authorization: [{actor: "............1", permission: "active"}]
@@ -168,18 +191,8 @@ $(document).ready(function () {
     });
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#clear').click(function(){
-    qrcode.innerHTML = ``;
-    esr.innerHTML = ``;
-  });
-  $('#1').click(function(){
-  var x = document.getElementById("cc");
-  if (x.style.display === "none") {
-    x.style.display = "block";
-  } else {
-    x.style.display = "none";
-  }
-  });
+  
+
 });
 </script>
 
@@ -250,44 +263,72 @@ label {
   <p>
   <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
   </p>
+  <p>
   <label for="contract_account" >Master Contract:</label>
-  <output id="contract_account"></output> <br>
+  <input id="contract_account"></input> <br>
   <label for="issuer_account">Issuer Account:</label>
   <input type="text" maxlength="12" id="issuer_account" name="issuer_account" value=""> <br>
   <label for="token_symbol">Token symbol:</label>
-  <input type="text" id="token_symbol" name="token_symbol" value=""> <br>
+  <input type="text" id="token_symbol" name="token_symbol" value=""> <br> <br>
+  </p>
 </div>
 
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'Create')">Create</button>
   <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
-  <button class="tablinks" onclick="openTab(event, 'Stakes')">Stakes</button>
+  <button class="tablinks" onclick="openTab(event, 'AddStake')">Add Stake</button>
+  <button class="tablinks" onclick="openTab(event, 'ReviewStakes')">Review Stakes</button>
 </div>
 
 
 <div id="Create" class="tabcontent" style="background-color:Beige;" >
   <h3>Token Creation</h3>
   <label for="max_supply">Maximum supply:</label>
-  <input type="text" id="max_supply" name="max_supply" value=""> <br>
+  <input type="text" id="max_supply" name="max_supply" value="1000.0000"> <br>
+  <p>
+  <label for="closed">Closed membership:</label>
+  <input type="checkbox" id="closed" checked
+         onclick="document.getElementById('member_mgr').disabled = !document.getElementById('closed').checked"> <br>
   <label for="member_mgr">Membership manager:</label>
   <input type="text" id="member_mgr" name="member_mgr" value=""> <br>
+  </p>
+  <p>
+  <label for="withdraw_enabled">Withdrawal enabled:</label>
+  <input type="checkbox" id="withdraw_enabled" 
+         onclick="document.getElementById('withdraw_mgr').disabled =
+                  document.getElementById('withdraw_to').disabled =
+                  !document.getElementById('withdraw_enabled').checked"> <br>
   <label for="withdraw_mgr">Withdrawal manager:</label>
-  <input type="text" id="withdraw_mgr" name="withdraw_mgr" value=""> <br>
+  <input type="text" id="withdraw_mgr" name="withdraw_mgr" value="" disabled> <br>
   <label for="withdraw_to">Withdraw-to account:</label>
-  <input type="text" id="withdraw_to" name="withdraw_to" value=""> <br>
+  <input type="text" id="withdraw_to" name="withdraw_to" value="" disabled> <br>
+  </p>
+  <p>
+  <label for="withdraw_enabled">Freeze enabled:</label>
+  <input type="checkbox" id="freeze_enabled" checked
+         onclick="document.getElementById('freeze_mgr').disabled =
+                  !document.getElementById('freeze_enabled').checked"> <br>
   <label for="freeze_mgr">Freeze manager:</label>
   <input type="text" id="freeze_mgr" name="freeze_mgr" value=""> <br>
+  </p>
   <label for="redeem_lock_until">Redeem locked until:</label>
-  <input type="text" id="redeem_lock_until" name="redeem_lock_until" value=""> <br>
+  <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br>
   <label for="config_lock_until">Configuration locked until:</label>
-  <input type="text" id="config_lock_until" name="config_lock_until" value=""> <br>
+  <input type="datetime-local" id="config_lock_until" name="config_lock_until" value=""> <br>
+  <p>
+  <label for="MC_enabled">Mutual Credit features:</label>
+  <input type="checkbox" id="MC_enabled" 
+         onclick="document.getElementById('cred_lim').disabled =
+                  document.getElementById('max_lim').disabled =
+                  !document.getElementById('MC_enabled').checked"> <br>
   <label for="cred_lim">Credit limit symbol:</label>
-  <input type="text" id="cred_lim" name="cred_lim" value=""> <br>
+  <input type="text" id="cred_lim" name="cred_lim" value="" disabled> <br>
   <label for="max_lim">Maximum limit symbol:</label>
-  <input type="text" id="max_lim" name="max_lim" value=""> <br> <br>
+  <input type="text" id="max_lim" name="max_lim" value="" disabled> 
+  </p>
   <div id="button-wrapper">
     <input type="button" id="create" value="Create QR" class="button">
-    <input type="button" id="clear" value="Clear result" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
 </div>
@@ -298,12 +339,12 @@ label {
   <br>
   <div id="button-wrapper">
     <input type="button" id="approve" value="Create QR" class="button">
-    <input type="button" id="clear" value="Clear result" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
 </div>
 
-<div id="Stakes" class="tabcontent" style="background-color:Beige;">
+<div id="AddStake" class="tabcontent" style="background-color:Beige;">
   <h3>Add Stake</h3>
   <label for="bucket">Token quantity:</label>
   <input type="text" id="bucket" name="bucket" value="1.0000"> <br>
@@ -313,7 +354,7 @@ label {
   <input type="text" id="stake_symbol" name="stake_symbol" value=""> <br>
   <label for="stake_contract">Staked contract:</label>
   <input type="text" id="stake_contract" name="stake_contract" value=""> <br>
-  <label for="stake_to">Stake to:</label>
+  <label for="stake_to">Stake to (escrow):</label>
   <input type="text" id="stake_to" name="stake_to" value=""> <br>
   <label for="stake_memo">Memo:</label>
   <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
@@ -322,8 +363,13 @@ label {
   <br>
   <div id="button-wrapper">
     <input type="button" id="stake" value="Create QR" class="button">
-    <input type="button" id="clear" value="Clear result" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
+
+</div>
+
+<div id="ReviewStakes" class="tabcontent" style="background-color:Beige;">
+  <h3>Review Stakes</h3>
 
 </div>
 
