@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js">
+</script>
+<script type="text/javascript">
+
+
+function badAccount(name) {
+  // TODO: more complete validity check
+  return (name.length !== 12);
+}
+var testnet_checkbox;
+var contract;
+function testnet_status () {
+    testnet_checkbox = document.getElementById("testmode");
+    if (testnet_checkbox.checked) {
+      contract = "histrdotsuds";
+    } else {
+      contract = "rainbowproto";
+    }
+    contract_account.innerHTML = contract;
+}
+
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
+$(document).ready(function () {
+  testnet_status();
+  $('#testmode').click(function(){
+    testnet_status();
+  });
+  $('#create').click(function(){
+    const esr_gen_base = "https://cc42.xyz";
+    if (testnet_checkbox.checked) {
+      var esr_gen_url = esr_gen_base + '/qrt';
+    } else {
+      var esr_gen_url = esr_gen_base + '/qr';
+    }
+    let actions=[];
+    actions.push({
+      account: contract, name: "create",
+      data: {
+        issuer: document.getElementById("issuer_account").value,
+        maximum_supply: (document.getElementById("max_supply").value + " " +
+                         document.getElementById("token_symbol").value),
+        membership_mgr: document.getElementById("member_mgr").value,
+        withdrawal_mgr: document.getElementById("withdraw_mgr").value,
+        withdraw_to: document.getElementById("withdraw_to").value,
+        freeze_mgr: document.getElementById("freeze_mgr").value,
+        redeem_locked_until: document.getElementById("redeem_lock_until").value,
+        config_locked_until: document.getElementById("config_lock_until").value,
+        cred_limit_symbol: document.getElementById("cred_lim").value,
+        pos_limit_symbol: document.getElementById("max_lim").value,
+
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    $.ajax({
+      type: "POST",
+      url: esr_gen_url,
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#approve').click(function(){
+    const esr_gen_base = "https://cc42.xyz";
+    if (testnet_checkbox.checked) {
+      var esr_gen_url = esr_gen_base + '/qrt';
+    } else {
+      var esr_gen_url = esr_gen_base + '/qr';
+    }
+    let actions=[];
+    actions.push({
+      account: contract, name: "approve",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        reject_and_clear: !document.getElementById("approve_checked").checked,
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    $.ajax({
+      type: "POST",
+      url: esr_gen_url,
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#stake').click(function(){
+    const esr_gen_base = "https://cc42.xyz";
+    if (testnet_checkbox.checked) {
+      var esr_gen_url = esr_gen_base + '/qrt';
+    } else {
+      var esr_gen_url = esr_gen_base + '/qr';
+    }
+    let actions=[];
+    actions.push({
+      account: contract, name: "setstake",
+      data: {
+        token_bucket: (document.getElementById("bucket").value + " " +
+                         document.getElementById("token_symbol").value),
+        stake_per_bucket: (document.getElementById("staked").value + " " +
+                         document.getElementById("stake_symbol").value),
+        stake_token_contract: document.getElementById("stake_contract").value,
+        stake_to: document.getElementById("stake_to").value,
+        proportional: !document.getElementById("proportional").checked,
+        memo: document.getElementById("stake_memo").value,
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    $.ajax({
+      type: "POST",
+      url: esr_gen_url,
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#clear').click(function(){
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
+  });
+  $('#1').click(function(){
+  var x = document.getElementById("cc");
+  if (x.style.display === "none") {
+    x.style.display = "block";
+  } else {
+    x.style.display = "none";
+  }
+  });
+});
+</script>
+
+<style>
+body {
+  font-size: 100%;
+}
+@media only screen and (max-width: 740px) {
+  body {
+    font-size: 150%;
+  }
+  .button {
+    text-align: center;
+    font-size: 100%;
+  }
+}
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+label {
+  display: inline-block;
+  width: 12em;
+  text-align: right;
+}
+
+
+</style>
+</head>
+<body>
+
+<h2>Rainbow token management</h2>
+
+<div style="background-color:Aquamarine;">
+  <p>
+  <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
+  </p>
+  <label for="contract_account" >Master Contract:</label>
+  <output id="contract_account"></output> <br>
+  <label for="issuer_account">Issuer Account:</label>
+  <input type="text" maxlength="12" id="issuer_account" name="issuer_account" value=""> <br>
+  <label for="token_symbol">Token symbol:</label>
+  <input type="text" id="token_symbol" name="token_symbol" value=""> <br>
+</div>
+
+<div class="tab">
+  <button class="tablinks" onclick="openTab(event, 'Create')">Create</button>
+  <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
+  <button class="tablinks" onclick="openTab(event, 'Stakes')">Stakes</button>
+</div>
+
+
+<div id="Create" class="tabcontent" style="background-color:Beige;" >
+  <h3>Token Creation</h3>
+  <label for="max_supply">Maximum supply:</label>
+  <input type="text" id="max_supply" name="max_supply" value=""> <br>
+  <label for="member_mgr">Membership manager:</label>
+  <input type="text" id="member_mgr" name="member_mgr" value=""> <br>
+  <label for="withdraw_mgr">Withdrawal manager:</label>
+  <input type="text" id="withdraw_mgr" name="withdraw_mgr" value=""> <br>
+  <label for="withdraw_to">Withdraw-to account:</label>
+  <input type="text" id="withdraw_to" name="withdraw_to" value=""> <br>
+  <label for="freeze_mgr">Freeze manager:</label>
+  <input type="text" id="freeze_mgr" name="freeze_mgr" value=""> <br>
+  <label for="redeem_lock_until">Redeem locked until:</label>
+  <input type="text" id="redeem_lock_until" name="redeem_lock_until" value=""> <br>
+  <label for="config_lock_until">Configuration locked until:</label>
+  <input type="text" id="config_lock_until" name="config_lock_until" value=""> <br>
+  <label for="cred_lim">Credit limit symbol:</label>
+  <input type="text" id="cred_lim" name="cred_lim" value=""> <br>
+  <label for="max_lim">Maximum limit symbol:</label>
+  <input type="text" id="max_lim" name="max_lim" value=""> <br> <br>
+  <div id="button-wrapper">
+    <input type="button" id="create" value="Create QR" class="button">
+    <input type="button" id="clear" value="Clear result" class="button">
+  </div>
+
+</div>
+
+<div id="Approve" class="tabcontent" style="background-color:Beige;">
+  <h3>Token Approval</h3>
+  <label for="approve">Approve:</label> <input type="checkbox" id="approve_checked" checked> <br>
+  <br>
+  <div id="button-wrapper">
+    <input type="button" id="approve" value="Create QR" class="button">
+    <input type="button" id="clear" value="Clear result" class="button">
+  </div>
+
+</div>
+
+<div id="Stakes" class="tabcontent" style="background-color:Beige;">
+  <h3>Add Stake</h3>
+  <label for="bucket">Token quantity:</label>
+  <input type="text" id="bucket" name="bucket" value="1.0000"> <br>
+  <label for="staked">Staked quantity:</label>
+  <input type="text" id="staked" name="staked" value="1.0000"> <br>
+  <label for="stake_symbol">Staked symbol:</label>
+  <input type="text" id="stake_symbol" name="stake_symbol" value=""> <br>
+  <label for="stake_contract">Staked contract:</label>
+  <input type="text" id="stake_contract" name="stake_contract" value=""> <br>
+  <label for="stake_to">Stake to:</label>
+  <input type="text" id="stake_to" name="stake_to" value=""> <br>
+  <label for="stake_memo">Memo:</label>
+  <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
+  <label for="proportional">Proportional unstake:</label>
+  <input type="checkbox" id="proportional" > <br>
+  <br>
+  <div id="button-wrapper">
+    <input type="button" id="stake" value="Create QR" class="button">
+    <input type="button" id="clear" value="Clear result" class="button">
+  </div>
+
+</div>
+
+<div id=qrcode> </div>
+<div id=esr> </div>
+
+</body>
+</html>
+
