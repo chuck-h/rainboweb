@@ -123,7 +123,7 @@ $(document).ready(function () {
       account: document.getElementById("contract_account").value, name: "approve",
       data: {
         symbolcode: document.getElementById("token_symbol").value,
-        reject_and_clear: !document.getElementById("approve_checked").checked,
+        reject_and_clear: document.getElementById("reject_checked").checked,
       },
       authorization: [{actor: "............1", permission: "active"}]
     })
@@ -251,6 +251,11 @@ label {
   width: 12em;
   text-align: right;
 }
+.radiolabelhoriz {
+  display: inline-block;
+  width: 6em;
+  text-align: right;
+}
 
 
 </style>
@@ -279,6 +284,11 @@ label {
   <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
   <button class="tablinks" onclick="openTab(event, 'AddStake')">Add Stake</button>
   <button class="tablinks" onclick="openTab(event, 'ReviewStakes')">Review Stakes</button>
+  <button class="tablinks" onclick="openTab(event, 'Display')">Token Info</button>
+  <button class="tablinks" onclick="openTab(event, 'Issue')">Issue</button>
+  <button class="tablinks" onclick="openTab(event, 'Open')">Enroll</button>
+  <button class="tablinks" onclick="openTab(event, 'Redeem')">Redeem</button>
+  <button class="tablinks" onclick="openTab(event, 'Freeze')">Freeze</button>
 </div>
 
 
@@ -335,9 +345,14 @@ label {
 </div>
 
 <div id="Approve" class="tabcontent" style="background-color:Beige;">
-  <h3>Token Approval</h3>
-  <label for="approve">Approve:</label> <input type="checkbox" id="approve_checked" checked> <br>
-  <br>
+  <h3>Approve or reject token</h3>
+  <p>
+  <label for="approve">Approve:</label>
+  <input type="radio" id="approve_checked" name="approval" value="approved" checked>
+  <label for="reject_checked" class="radiolabelhoriz">Reject:</label>
+  <input type="radio" id="reject_checked" name="approval" value="rejected"> <br>
+  </p>
+   <br>
   <div id="button-wrapper">
     <input type="button" id="approve" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
@@ -372,6 +387,56 @@ label {
 <div id="ReviewStakes" class="tabcontent" style="background-color:Beige;">
   <h3>Review Stakes</h3>
 
+</div>
+
+<div id="Display" class="tabcontent" style="background-color:Beige;">
+  <h3>Set token display information</h3>
+  <label for="token_name">Short name:</label>
+  <input type="text" id="token_name" name="token_name" value="My new token"> <br>
+  <label for="logo">Logo url:</label>
+  <input type="text" id="logo" name="logo" value=""> <br>
+</div>
+
+<div id="Issue" class="tabcontent" style="background-color:Beige;">
+  <h3>Issue tokens</h3>
+  <label for="issue_qty">Quantity:</label>
+  <input type="text" id="issue_qty" name="issue_qty" value="1.0000"> <br>
+</div>
+
+<div id="Open" class="tabcontent" style="background-color:Beige;">
+  <h3>Enroll or remove member</h3>
+  <p>
+  <label for="enroll_checked">Enroll:</label>
+  <input type="radio" id="enroll_checked" name="enrollment" value="open" checked>
+  <label for="remove_checked" class="radiolabelhoriz">Remove:</label>
+  <input type="radio" id="remove_checked" name="enrollment" value="close"> <br>
+  </p>
+  <label for="member_acct">Account:</label>
+  <input type="text" id="member_acct" name="member_acct" value=""> <br>
+
+</div>
+
+<div id="Redeem" class="tabcontent" style="background-color:Beige;">
+  <h3>Redeem tokens</h3>
+  <label for="redeem-from">Reedem from:</label>
+  <input type="text" id="redeem" name="redeem" value=""> <br>
+  <label for="redeem_qty">Quantity:</label>
+  <input type="text" id="redeem_qty" name="redeem_qty" value="1.0000"> <br>
+  <label for="redeem_memo">Memo:</label>
+  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> <br>
+</div>
+
+<div id="Freeze" class="tabcontent" style="background-color:Beige;">
+  <h3>Freeze token transfers</h3>
+  <p>
+  <label for="freeze_checked">Freeze:</label>
+  <input type="radio" id="freeze_checked" name="freezing" value="frozen" checked>
+  <label for="unfreeze_checked" class="radiolabelhoriz">Unfreeze:</label>
+  <input type="radio" id="unfreeze_checked" name="freezing" value="unfrozen"> <br>
+  </p>
+
+  <label for="redeem_memo">Memo:</label>
+  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> <br>
 </div>
 
 <div id=qrcode> </div>
