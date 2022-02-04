@@ -31,17 +31,25 @@ function openTab(evt, tabName) {
   for (i = 0; i < tablinks.length; i++) {
     tablinks[i].className = tablinks[i].className.replace(" active", "");
   }
+  if( evt != null) {
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
+  }
   clearQR();
+  if( tabName=="Create" ) {
+    setupCreateTab();
+  }
+  if( tabName=="Approve" ) {
+    setupApproveTab();
+  }
   if( tabName=="ReviewStakes" ) {
     setupReviewStakesTab();
   }
   if( tabName=="Open" ) {
     setupOpenTab();
   }
-  if( tabName=="Create" ) {
-    setupCreateTab();
+  if( tabName=="Freeze" ) {
+    setupFreezeTab();
   }
 }
 function setupCreateTab() {
@@ -79,12 +87,36 @@ function setupCreateTab() {
     function(x,s,e) { } );
 }
 
+function setupApproveTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      let visibility = "hidden";
+      if( data.rows.length != 0 && data.rows[0].approved) {
+        visibility = "visible";
+      }
+    document.getElementById("approved_in_table").style.visibility = visibility;
+    },
+    function(x,s,e) { } );
+}
+
 function setupOpenTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
       if( data.rows.length != 0 ) {
         document.getElementById("membership_mgr_acct").value = data.rows[0].membership_mgr;
       }
+    },
+    function(x,s,e) { } );
+}
+
+function setupFreezeTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      let visibility = "hidden";
+      if( data.rows.length != 0 && data.rows[0].transfers_frozen) {
+        visibility = "visible";
+      }
+    document.getElementById("frozen_in_table").style.visibility = visibility;
     },
     function(x,s,e) { } );
 }
@@ -218,6 +250,7 @@ $(document).ready(function () {
     testnet_status();
     getRows("symbols", document.getElementById("contract_account").value,
             setTokenDatalist, emptyTokenDatalist);
+    openTab(null, null);
   });
   $('#contract_account').change(function(){
     if( testnet_checked ) {
@@ -225,10 +258,11 @@ $(document).ready(function () {
     } else {
       mainnet_contract = document.getElementById("contract_account").value;
     }
+    openTab(null, null);
     getRows("symbols", document.getElementById("contract_account").value,
             setTokenDatalist, emptyTokenDatalist);
   });
-  $('#create').click(function(){
+  $('#create_QR').click(function(){
     let membership_mgr = !document.getElementById("closed").checked ? allowall :
                          document.getElementById("member_mgr").value;
     let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
@@ -272,7 +306,7 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#approve').click(function(){
+  $('#approve_QR').click(function(){
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "approve",
@@ -290,7 +324,7 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#setstake').click(function(){
+  $('#setstake_QR').click(function(){
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "setstake",
@@ -314,7 +348,7 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#delete_stake').click(function(){
+  $('#deletestake_QR').click(function(){
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "deletestake",
@@ -333,7 +367,7 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#issue_tokens').click(function(){
+  $('#issue_QR').click(function(){
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "issue",
@@ -380,13 +414,52 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#redeem_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "retire",
+      data: {
+        owner: document.getElementById("redeem_from").value,
+        quantity: (document.getElementById("redeem_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        memo: document.getElementById("redeem_memo").value
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#freeze_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "freeze",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        freeze: document.getElementById("freeze_checked").checked,
+        memo: document.getElementById("freeze_memo").value
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    console.log(JSON.stringify(transaction));
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
   $('#stakes').change(function(){
     updateReviewStake();
     clearQR();
   });
   $('#token_symbol').change(function(){
-    setupReviewStakesTab();
-    setupOpenTab();
+    openTab(null, null);
     updateIssuer();
   });   
   $('input').change(function(){
@@ -542,7 +615,7 @@ label {
   <input type="text" id="max_lim" name="max_lim" value="" disabled> 
   </p>
   <div id="button-wrapper">
-    <input type="button" id="create" value="Create QR" class="button">
+    <input type="button" id="create_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
@@ -551,6 +624,7 @@ label {
 <div id="Approve" class="tabcontent" style="background-color:Beige;">
   <h3>Approve or reject token</h3>
   <p>
+  <div id="approved_in_table" style="visibility:hidden;">This token is already approved on-chain.</div>
   <label for="approve">Approve:</label>
   <input type="radio" id="approve_checked" name="approval" value="approved" checked>
   <label for="reject_checked" class="radiolabelhoriz">Reject:</label>
@@ -558,7 +632,7 @@ label {
   </p>
    <br>
   <div id="button-wrapper">
-    <input type="button" id="approve" value="Create QR" class="button">
+    <input type="button" id="approve_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
@@ -582,7 +656,7 @@ label {
   <input type="checkbox" id="proportional" > <br>
   <br>
   <div id="button-wrapper">
-    <input type="button" id="setstake" value="Create QR" class="button">
+    <input type="button" id="setstake_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
@@ -609,7 +683,7 @@ label {
     <input type="checkbox" id="r_proportional" > <br>
     <br>
     <div id="button-wrapper">
-      <input type="button" id="delete_stake" value="Delete Stake" class="button">
+      <input type="button" id="deletestake_QR" value="Delete Stake" class="button">
       <input type="button" value="Clear QR" onclick="clearQR()" class="button">
     </div>
 
@@ -632,7 +706,7 @@ label {
   <label for="issue_memo">Memo:</label>
   <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
   <div id="button-wrapper">
-    <input type="button" id="issue_tokens" value="Create QR" class="button">
+    <input type="button" id="issue_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 </div>
@@ -657,25 +731,34 @@ label {
 
 <div id="Redeem" class="tabcontent" style="background-color:Beige;">
   <h3>Redeem tokens</h3>
-  <label for="redeem-from">Reedem from:</label>
-  <input type="text" id="redeem" name="redeem" value=""> <br>
+  <label for="redeem_from">Reedem from:</label>
+  <input type="text" id="redeem_from" name="redeem_from" value=""> <br>
   <label for="redeem_qty">Quantity:</label>
   <input type="text" id="redeem_qty" name="redeem_qty" value="1.0000"> <br>
   <label for="redeem_memo">Memo:</label>
-  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> <br>
+  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="redeem_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
 </div>
 
 <div id="Freeze" class="tabcontent" style="background-color:Beige;">
   <h3>Freeze token transfers</h3>
   <p>
+  <div id="frozen_in_table" style="visibility:hidden;">This token is already frozen on-chain.</div>
   <label for="freeze_checked">Freeze:</label>
   <input type="radio" id="freeze_checked" name="freezing" value="frozen" checked>
   <label for="unfreeze_checked" class="radiolabelhoriz">Unfreeze:</label>
   <input type="radio" id="unfreeze_checked" name="freezing" value="unfrozen"> <br>
   </p>
 
-  <label for="redeem_memo">Memo:</label>
-  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> <br>
+  <label for="freeze_memo">Memo:</label>
+  <textarea rows="2" id="freeze_memo" name="freeze_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="freeze_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
 </div>
 
 <div id=qrcode> </div>
