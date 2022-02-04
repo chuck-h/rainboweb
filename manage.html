@@ -8,6 +8,8 @@
 var testnet_checked;
 var test_contract = "histrdotsuds";
 var mainnet_contract = "rainbowproto";
+const allowall = "allowallacct";    
+
 function testnet_status () {
   testnet_checked = document.getElementById("testmode").checked;
   document.getElementById("contract_account").value = testnet_checked ? test_contract : mainnet_contract;
@@ -26,17 +28,194 @@ function openTab(evt, tabName) {
   document.getElementById(tabName).style.display = "block";
   evt.currentTarget.className += " active";
   clearQR();
+  if( tabName=="ReviewStakes" ) {
+    setupReviewStakesTab();
+  }
+  if( tabName=="Open" ) {
+    setupOpenTab();
+  }
+  if( tabName=="Create" ) {
+    setupCreateTab();
+  }
+}
+function setupCreateTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        document.getElementById("closed").checked = data.rows[0].membership_mgr != allowall;
+        document.getElementById("member_mgr").value = 
+          document.getElementById("closed").checked ? data.rows[0].membership_mgr : "";
+        document.getElementById("withdraw_enabled").checked = data.rows[0].withdrawal_mgr != 'eosio.null';
+        document.getElementById("withdraw_mgr").value = 
+          document.getElementById("withdraw_enabled").checked ? data.rows[0].withdrawal_mgr : "";
+        document.getElementById("withdraw_to").value = 
+          document.getElementById("withdraw_enabled").checked ? data.rows[0].withdraw_to : "";
+        document.getElementById("freeze_enabled").checked = data.rows[0].freeze_mgr != 'eosio.null';
+        document.getElementById("freeze_mgr").value = 
+          document.getElementById("freeze_enabled").checked ? data.rows[0].freeze_mgr : "";
+        document.getElementById("redeem_lock_until").value =
+           new Date(data.rows[0].redeem_locked_until).toLocaleString("sv-SE", {
+           year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+           second: "2-digit"}).replace(" ", "T");
+        document.getElementById("config_lock_until").value =
+           new Date(data.rows[0].config_locked_until).toLocaleString("sv-SE", {
+           year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+           second: "2-digit"}).replace(" ", "T");
+        document.getElementById("MC_enabled").checked =
+           data.rows[0].cred_limit != "" || data.rows[0].positive_limit != "";
+        document.getElementById("cred_lim").value = data.rows[0].cred_limit;
+        document.getElementById("max_lim").value = data.rows[0].positive_limit;
+      }
+    },
+    function(x,s,e) { } );
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        document.getElementById("max_supply").value = data.rows[0].max_supply.split(" ")[0];
+      }
+    },
+    function(x,s,e) { } );
 }
 
+function setupOpenTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        document.getElementById("membership_mgr_acct").value = data.rows[0].membership_mgr;
+      }
+    },
+    function(x,s,e) { } );
+}
+
+function setupReviewStakesTab() {
+    getRows("stakes", document.getElementById("token_symbol").value,
+            function(data, status, jqXHR) {
+              if( data.rows.length == 0 ) {
+                document.getElementById("stakeselector").style.display = "none";
+                document.getElementById("nostakes").style.display = "block";
+              } else {
+                $("#stakes").empty();
+                data["rows"].forEach(function(row) {
+                  $("<option/>").html(`${row.index} ${row.stake_per_bucket}`).appendTo("#stakes");
+                });
+                reviewOneStake(data);
+              }        
+            },
+            function(x,s,e) { 
+              document.getElementById("stakeselector").style.display = "none";
+              document.getElementById("nostakes").style.display = "block";
+            } );
+}
+
+function updateReviewStake() {
+  getRows("stakes", document.getElementById("token_symbol").value,
+          function(data, status, jqXHR) {
+            reviewOneStake(data);
+          },
+          function(x,s,e) { 
+            document.getElementById("stakeselector").style.display = "none";
+            document.getElementById("nostakes").style.display = "block";
+          });
+}
+
+function reviewOneStake(data) {
+  if( data.rows.length == 0 ) {
+    document.getElementById("stakeselector").style.display = "none";
+    document.getElementById("nostakes").style.display = "block";
+    return;
+  }
+  document.getElementById("stakeselector").style.display = "block";
+  document.getElementById("nostakes").style.display = "none";
+  const selectedStake = document.getElementById("stakes").value;
+  const selectedIndex = selectedStake.split(" ")[0];
+  const selectedRow = data.rows.find(function(row){return row.index==selectedIndex;});
+  document.getElementById("r_bucket").value = selectedRow.token_bucket.split(" ")[0];
+  document.getElementById("r_staked").value = selectedRow.stake_per_bucket.split(" ")[0];
+  document.getElementById("r_stake_symbol").value = selectedRow.stake_per_bucket.split(" ")[1];
+  document.getElementById("r_stake_contract").value = selectedRow.stake_token_contract;
+  document.getElementById("r_stake_to").value = selectedRow.stake_to;
+  document.getElementById("r_proportional").checked = selectedRow.proportional;
+}
+
+function updateIssuer() {
+  getRows("stat", document.getElementById("token_symbol").value,
+
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              document.getElementById("issuer_account").value = data.rows[0].issuer;
+            }
+          },
+          function(x,s,e) { 
+          });
+  
+}
+function esrGenUrl() {
+  const esr_gen_base = "https://cc42.xyz";
+  return esr_gen_base + (testnet_checked ? '/qrt' : '/qr');
+}
+function makeQR(transaction) {
+    $.ajax({
+      type: "POST",
+      url: esrGenUrl(),
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
 function clearQR() {
     qrcode.innerHTML = ``;
     esr.innerHTML = ``;
 }
+function setTokenDatalist(data, status, jqXHR) {
+  $("#tokens").empty();
+  data["rows"].forEach(function(row) {
+    $("<option/>").html(row.symbolcode).appendTo("#tokens");
+  });
+}
+function emptyTokenDatalist(x,s,e) {
+  $("#tokens").empty();
+}
+function getRows(table, scope, action, erroraction=null) {
+  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
+                                         : "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: document.getElementById("contract_account").value,
+                table: table,
+                scope: scope,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: action,
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+// TBD
+}
 
 $(document).ready(function () {
   testnet_status();
+  getRows("symbols", document.getElementById("contract_account").value,
+          setTokenDatalist, emptyTokenDatalist);
   $('#testmode').click(function(){
     testnet_status();
+    getRows("symbols", document.getElementById("contract_account").value,
+            setTokenDatalist, emptyTokenDatalist);
   });
   $('#contract_account').change(function(){
     if( testnet_checked ) {
@@ -44,16 +223,10 @@ $(document).ready(function () {
     } else {
       mainnet_contract = document.getElementById("contract_account").value;
     }
+    getRows("symbols", document.getElementById("contract_account").value,
+            setTokenDatalist, emptyTokenDatalist);
   });
   $('#create').click(function(){
-    const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checked) {
-      var esr_gen_url = esr_gen_base + '/qrt';
-    } else {
-      var esr_gen_url = esr_gen_base + '/qr';
-    }
-
-    const allowall = "allowallacct";    
     let membership_mgr = !document.getElementById("closed").checked ? allowall :
                          document.getElementById("member_mgr").value;
     let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
@@ -83,8 +256,8 @@ $(document).ready(function () {
         freeze_mgr: freeze_mgr,
         redeem_locked_until: redeem_date.toISOString(),
         config_locked_until: config_date.toISOString(),
-        cred_limit_symbol: document.getElementById("cred_lim").value,
-        pos_limit_symbol: document.getElementById("max_lim").value,
+        cred_limit: document.getElementById("cred_lim").value,
+        positive_limit: document.getElementById("max_lim").value,
 
       },
       authorization: [{actor: "............1", permission: "active"}]
@@ -94,29 +267,10 @@ $(document).ready(function () {
       actions: actions
     }
     console.log(transaction);
-    $.ajax({
-      type: "POST",
-      url: esr_gen_url,
-      data: JSON.stringify(transaction),
-      contentType: "application/json; charset=utf-8",
-      dataType: "json",
-      success: function(data, status, jqXHR) {
-        qrcode.innerHTML = `<img src=${data.qr}>`;
-        esr.innerHTML = data.esr;
-      },
-      error: function(xhr, status, error) {
-        esr.innerHTML = xhr.responseText;
-      }
-    });
+    makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
   $('#approve').click(function(){
-    const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checked) {
-      var esr_gen_url = esr_gen_base + '/qrt';
-    } else {
-      var esr_gen_url = esr_gen_base + '/qr';
-    }
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "approve",
@@ -131,29 +285,10 @@ $(document).ready(function () {
       actions: actions
     }
     console.log(transaction);
-    $.ajax({
-      type: "POST",
-      url: esr_gen_url,
-      data: JSON.stringify(transaction),
-      contentType: "application/json; charset=utf-8",
-      dataType: "json",
-      success: function(data, status, jqXHR) {
-        qrcode.innerHTML = `<img src=${data.qr}>`;
-        esr.innerHTML = data.esr;
-      },
-      error: function(xhr, status, error) {
-        esr.innerHTML = xhr.responseText;
-      }
-    });
+    makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#stake').click(function(){
-    const esr_gen_base = "https://cc42.xyz";
-    if (testnet_checked) {
-      var esr_gen_url = esr_gen_base + '/qrt';
-    } else {
-      var esr_gen_url = esr_gen_base + '/qr';
-    }
+  $('#setstake').click(function(){
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "setstake",
@@ -174,24 +309,91 @@ $(document).ready(function () {
       actions: actions
     }
     console.log(transaction);
-    $.ajax({
-      type: "POST",
-      url: esr_gen_url,
-      data: JSON.stringify(transaction),
-      contentType: "application/json; charset=utf-8",
-      dataType: "json",
-      success: function(data, status, jqXHR) {
-        qrcode.innerHTML = `<img src=${data.qr}>`;
-        esr.innerHTML = data.esr;
-      },
-      error: function(xhr, status, error) {
-        esr.innerHTML = xhr.responseText;
-      }
-    });
+    makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  
+  $('#delete_stake').click(function(){
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "deletestake",
+      data: {
+        stake_index: document.getElementById("stakes").value.split(" ")[0],
+        symbolcode: document.getElementById("r_stake_symbol").value,
+        memo: "",
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
 
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#issue_tokens').click(function(){
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "issue",
+      data: {
+        quantity: (document.getElementById("issue_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        memo: document.getElementById("issue_memo").value
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#enroll_QR').click(function(){
+    let opening = document.getElementById("enroll_checked").checked;
+    let actions=[];
+    let actiondata = {
+        owner: document.getElementById("member_acct").value,
+        symbolcode: document.getElementById("token_symbol").value,
+    };
+    if( opening ) {
+      if( document.getElementById("membership_mgr_acct").value == allowall) {
+        actiondata.ram_payer = document.getElementById("issuer_account").value;
+      } else {
+        actiondata.ram_payer = document.getElementById("membership_mgr_acct").value;
+      }
+    }
+    actions.push({
+      account: document.getElementById("contract_account").value,
+      name: opening ? "open" : "close",
+      data: actiondata,
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#stakes').change(function(){
+    updateReviewStake();
+    clearQR();
+  });
+  $('#token_symbol').change(function(){
+    setupReviewStakesTab();
+    setupOpenTab();
+    updateIssuer();
+  });   
+  $('input').change(function(){
+    clearQR();
+  });
+  $('textarea').change(function(){
+    clearQR();
+  });
+ 
 });
 </script>
 
@@ -268,13 +470,14 @@ label {
   <p>
   <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
   </p>
+  <datalist id="tokens"></datalist>
   <p>
   <label for="contract_account" >Master Contract:</label>
   <input id="contract_account"></input> <br>
+  <label for="token_symbol">Token symbol:</label>
+  <input type="text" list="tokens" id="token_symbol" name="token_symbol" value=""> <br>
   <label for="issuer_account">Issuer Account:</label>
   <input type="text" maxlength="12" id="issuer_account" name="issuer_account" value=""> <br>
-  <label for="token_symbol">Token symbol:</label>
-  <input type="text" id="token_symbol" name="token_symbol" value=""> <br> <br>
   </p>
 </div>
 
@@ -377,7 +580,7 @@ label {
   <input type="checkbox" id="proportional" > <br>
   <br>
   <div id="button-wrapper">
-    <input type="button" id="stake" value="Create QR" class="button">
+    <input type="button" id="setstake" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 
@@ -385,7 +588,31 @@ label {
 
 <div id="ReviewStakes" class="tabcontent" style="background-color:Beige;">
   <h3>Review Stakes</h3>
+  <div id="stakeselector">
+    <p>
+    <label for="stakes">Select stake:</label>
+    <select name="stakes" id="stakes"> </select>
+    </p>
+    <label for="r_bucket">Token quantity:</label>
+    <input type="text" id="r_bucket" name="r_bucket" value="1.0000"> <br>
+    <label for="r_staked">Staked quantity:</label>
+    <input type="text" id="r_staked" name="r_staked" value="1.0000"> <br>
+    <label for="r_stake_symbol">Staked symbol:</label>
+    <input type="text" id="r_stake_symbol" name="r_stake_symbol" value=""> <br>
+    <label for="r_stake_contract">Staked contract:</label>
+    <input type="text" id="r_stake_contract" name="r_stake_contract" value=""> <br>
+    <label for="r_stake_to">Stake to (escrow):</label>
+    <input type="text" id="r_stake_to" name="r_stake_to" value=""> <br>
+    <label for="r_proportional">Proportional unstake:</label>
+    <input type="checkbox" id="r_proportional" > <br>
+    <br>
+    <div id="button-wrapper">
+      <input type="button" id="delete_stake" value="Delete Stake" class="button">
+      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    </div>
 
+  </div>
+  <div id="nostakes" style="display:none;"> No stakes for this token </div>
 </div>
 
 <div id="Display" class="tabcontent" style="background-color:Beige;">
@@ -400,6 +627,12 @@ label {
   <h3>Issue tokens</h3>
   <label for="issue_qty">Quantity:</label>
   <input type="text" id="issue_qty" name="issue_qty" value="1.0000"> <br>
+  <label for="issue_memo">Memo:</label>
+  <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="issue_tokens" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
 </div>
 
 <div id="Open" class="tabcontent" style="background-color:Beige;">
@@ -411,7 +644,12 @@ label {
   <input type="radio" id="remove_checked" name="enrollment" value="close"> <br>
   </p>
   <label for="member_acct">Account:</label>
-  <input type="text" id="member_acct" name="member_acct" value=""> <br>
+  <input type="text" id="member_acct" name="member_acct" value=""> <br><br>
+  <input type="text" id="membership_mgr_acct" hidden> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="enroll_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
 
 </div>
 
