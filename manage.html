@@ -14,7 +14,13 @@ function testnet_status () {
   testnet_checked = document.getElementById("testmode").checked;
   document.getElementById("contract_account").value = testnet_checked ? test_contract : mainnet_contract;
 }
-
+function offsetDateHTML(isoDate) {
+  let htmlDate = new Date(isoDate);
+  htmlDate.setMinutes(htmlDate.getMinutes() - htmlDate.getTimezoneOffset());
+  return htmlDate.toLocaleString("sv-SE", {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    second: "2-digit"}).replace(" ", "T");
+}
 function openTab(evt, tabName) {
   var i, tabcontent, tablinks;
   tabcontent = document.getElementsByClassName("tabcontent");
@@ -54,13 +60,9 @@ function setupCreateTab() {
         document.getElementById("freeze_mgr").value = 
           document.getElementById("freeze_enabled").checked ? data.rows[0].freeze_mgr : "";
         document.getElementById("redeem_lock_until").value =
-           new Date(data.rows[0].redeem_locked_until).toLocaleString("sv-SE", {
-           year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-           second: "2-digit"}).replace(" ", "T");
+           offsetDateHTML(data.rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
-           new Date(data.rows[0].config_locked_until).toLocaleString("sv-SE", {
-           year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-           second: "2-digit"}).replace(" ", "T");
+           offsetDateHTML(data.rows[0].config_locked_until);
         document.getElementById("MC_enabled").checked =
            data.rows[0].cred_limit != "" || data.rows[0].positive_limit != "";
         document.getElementById("cred_lim").value = data.rows[0].cred_limit;
