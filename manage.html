@@ -45,6 +45,9 @@ function openTab(evt, tabName) {
   if( tabName=="ReviewStakes" ) {
     setupReviewStakesTab();
   }
+  if( tabName=="Display" ) {
+    setupDisplayTab();
+  }
   if( tabName=="Open" ) {
     setupOpenTab();
   }
@@ -99,6 +102,21 @@ function setupApproveTab() {
     function(x,s,e) { } );
 }
 
+function setupDisplayTab() {
+  getRows("displays", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        document.getElementById("display_json").value = data.rows[0].json_meta;
+        let jd = JSON.parse(data.rows[0].json_meta);
+        document.getElementById("token_name").value = jd.name;
+        document.getElementById("logo").value = jd.logo;
+        document.getElementById("logo_lg").value = jd.logo_lg;
+        document.getElementById("web_link").value = jd.web_link;
+        document.getElementById("background_img").value = jd.background;
+      }
+    },
+    function(x,s,e) { } );
+}
 function setupOpenTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
@@ -183,6 +201,26 @@ function updateIssuer() {
           });
   
 }
+function updateDisplayJson() {
+  let jsonData = document.getElementById("display_json").value;
+  console.log(jsonData);
+  if( jsonData == "" ) {
+    jsonData = "{}";
+  }
+  try {
+    var obj = JSON.parse(jsonData);
+    obj.name = document.getElementById("token_name").value;
+    obj.logo = document.getElementById("logo").value;
+    obj.logo_lg = document.getElementById("logo_lg").value;
+    obj.web_link = document.getElementById("web_link").value;
+    obj.background = document.getElementById("background_img").value;
+    document.getElementById("display_json").value = JSON.stringify(obj);
+  }
+  catch(err) {
+    console.log(err);
+  }
+}
+
 function esrGenUrl() {
   const esr_gen_base = "https://cc42.xyz";
   return esr_gen_base + (testnet_checked ? '/qrt' : '/qr');
@@ -367,6 +405,25 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#display_QR').click(function(){
+    updateDisplayJson();
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setdisplay",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        json_meta: document.getElementById("display_json").value
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
   $('#issue_QR').click(function(){
     let actions=[];
     actions.push({
@@ -468,6 +525,10 @@ $(document).ready(function () {
   $('textarea').change(function(){
     clearQR();
   });
+  $('#display_json').click(function(){
+    updateDisplayJson();
+  });   
+
  
 });
 </script>
@@ -697,6 +758,21 @@ label {
   <input type="text" id="token_name" name="token_name" value="My new token"> <br>
   <label for="logo">Logo url:</label>
   <input type="text" id="logo" name="logo" value=""> <br>
+  <label for="logo_lg">Logo-large url:</label>
+  <input type="text" id="logo_lg" name="logo_lg" value=""> <br>
+  <label for="web_link">Web link url:</label>
+  <input type="text" id="web_link" name="web_link" value=""> <br>
+  <label for="background_img">Background img url:</label>
+  <input type="text" id="background_img" name="background_img" value=""> <br>
+  <p>
+  <label for="display_json">JSON data:</label>
+  <textarea rows="4" id="display_json" name="display_json" readonly
+           value="{}" style="vertical-align:middle;"> </textarea> <br>
+  </p>
+  <div id="button-wrapper">
+    <input type="button" id="display_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
 </div>
 
 <div id="Issue" class="tabcontent" style="background-color:Beige;">
