@@ -58,6 +58,9 @@ function openTab(evt, tabName) {
   if( tabName=="Freeze" ) {
     setupFreezeTab();
   }
+  if( tabName=="Send" ) {
+    setupSendTab();
+  }
 }
 function setupCreateTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
@@ -200,6 +203,13 @@ function setupFreezeTab() {
     document.getElementById("frozen_in_table").style.visibility = visibility;
     },
     function(x,s,e) { } );
+}
+
+function setupSendTab() {
+  document.getElementById("send_qty").value = "1.0000";
+  document.getElementById("send_from").value = "";
+  document.getElementById("send_to").value = "";
+  document.getElementById("send_memo").value = "";
 }
 
 function setupReviewStakesTab() {
@@ -615,6 +625,27 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#send_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "transfer",
+      data: {
+        quantity: (document.getElementById("send_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        from: document.getElementById("send_from").value,
+        to: document.getElementById("send_to").value,
+        memo: document.getElementById("freeze_memo").value
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
   $('#stakes').change(function(){
     updateReviewStake();
     clearQR();
@@ -741,6 +772,7 @@ label {
   <button class="tablinks" onclick="openTab(event, 'Open')">Enroll</button>
   <button class="tablinks" onclick="openTab(event, 'Redeem')">Redeem</button>
   <button class="tablinks" onclick="openTab(event, 'Freeze')">Freeze</button>
+  <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
 </div>
 
 
@@ -969,6 +1001,23 @@ label {
   <textarea rows="2" id="freeze_memo" name="freeze_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
   <div id="button-wrapper">
     <input type="button" id="freeze_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+</div>
+
+<div id="Send" class="tabcontent" style="background-color:Beige;">
+  <h3>Send tokens</h3>
+(An ordinary wallet transaction)<br><br>
+  <label for="send_qty">Quantity:</label>
+  <input type="text" id="send_qty" name="send_qty" value="1.0000"> <br>
+  <label for="send_from">From:</label>
+  <input type="text" id="send_from" name="send_from" value=""> <br>
+  <label for="send_to">To:</label>
+  <input type="text" id="send_to" name="send_to" value=""> <br>
+  <label for="send_memo">Memo:</label>
+  <textarea rows="2" id="send_memo" name="send_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="send_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 </div>
