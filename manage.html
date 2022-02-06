@@ -167,16 +167,16 @@ function setupDisplayTab() {
       let jd;
       if( data.rows.length != 0 ) {
         document.getElementById("display_json").value = data.rows[0].json_meta;
-        jd = JSON.parse(data.rows[0].json_meta);
       } else {
-        document.getElementById("display_json").value = "{}";
-        jd = {};
+        document.getElementById("display_json").value = '{"balance_subtitle":"Wallet Balance"}';
       }
+      jd = JSON.parse(document.getElementById("display_json").value);
       document.getElementById("token_name").value = jd.name;
       document.getElementById("logo").value = jd.logo;
       document.getElementById("logo_lg").value = jd.logo_lg;
       document.getElementById("web_link").value = jd.web_link;
       document.getElementById("background_img").value = jd.background;
+      document.getElementById("balance_subtitle").value = jd.balance_subtitle;
     },
     function(x,s,e) { } );
 }
@@ -277,6 +277,7 @@ function updateDisplayJson() {
     obj.logo_lg = document.getElementById("logo_lg").value;
     obj.web_link = document.getElementById("web_link").value;
     obj.background = document.getElementById("background_img").value;
+    obj.balance_subtitle = document.getElementById("balance_subtitle").value;
     document.getElementById("display_json").value = JSON.stringify(obj);
   }
   catch(err) {
@@ -895,6 +896,8 @@ label {
   <br>
   <label for="background_img">Background img url:</label>
   <input type="text" id="background_img" name="background_img" value=""> <br>
+  <label for="balance_subtitle">Balance subtitle:</label>
+  <input type="text" id="balance_subtitle" name="balance_subtitle" value=""> <br>
   <p>
   <label for="edit_display_json">edit other json fields:</label>
   <input type="checkbox" id="edit_display_json" > <br>
