@@ -8,6 +8,7 @@
 var testnet_checked;
 var test_contract = "histrdotsuds";
 var mainnet_contract = "rainbowproto";
+var active_auth;
 const allowall = "allowallacct";    
 
 function testnet_status () {
@@ -44,6 +45,9 @@ function openTab(evt, tabName) {
   }
   if( tabName=="ReviewStakes" ) {
     setupReviewStakesTab();
+  }
+  if( tabName=="StakingPermissions" ) {
+    setupPermissionsTab();
   }
   if( tabName=="Display" ) {
     setupDisplayTab();
@@ -100,6 +104,59 @@ function setupApproveTab() {
     document.getElementById("approved_in_table").style.visibility = visibility;
     },
     function(x,s,e) { } );
+}
+
+function setupPermissionsTab() {
+    getRows("stakes", document.getElementById("token_symbol").value,
+            function(data, status, jqXHR) {
+              $("#staking_accts").empty();
+              const accts = new Set();
+              accts.add(document.getElementById("issuer_account").value);
+              data.rows.map( function(row) { accts.add(row.stake_to); } );
+              accts.forEach(function(acct) {
+                $("<option/>").html(`${acct}`).appendTo("#staking_accts");
+              });
+              updatePermissions();       
+            });
+}
+
+function updatePermissions() {
+  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
+                                         : "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_account";
+  const data ={ account_name: document.getElementById("staking_accts").value,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        showAccountPermission(data);
+      },
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+// TBD
+}
+function showAccountPermission(data) {
+  active_auth = data.permissions.find(function(row){return row.perm_name=="active";});
+  permission_exists = "undefined" != typeof( active_auth.required_auth.accounts.find(function(acct){
+    return acct.permission.actor==document.getElementById("contract_account").value
+           && acct.permission.permission=="eosio.code";}) );
+  if( permission_exists ) {
+    permission_status.innerHTML = "permission is present;";
+    permission_action.innerHTML = "remove code permission";
+  } else {
+    permission_status.innerHTML = "permission is not present;";
+    permission_action.innerHTML = "add code permission";
+  }
 }
 
 function setupDisplayTab() {
@@ -405,6 +462,40 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#permission_QR').click(function(){
+    let actions=[];
+    var auth_object = active_auth.required_auth;
+    auth_object.parent = active_auth.parent;
+    auth_object.perm_name = active_auth.perm_name;
+    if( document.getElementById("permission_action").textContent.includes("add") ) {
+      auth_object.accounts.push( {
+        permission: { actor: document.getElementById("contract_account").value, 
+                       permission: "eosio.code" },
+        weight: 1
+      });
+    } else {
+      code_permission = active_auth.required_auth.accounts.findIndex(function(acct){
+        return acct.permission.actor==document.getElementById("contract_account").value
+           && acct.permission.permission=="eosio.code";}) ;
+      auth_object.accounts.splice(code_permission,1);
+    }
+    actions.push({
+      account: "eosio", name: "updateauth",
+      data: {
+        account: document.getElementById("staking_accts").value,
+        permission: "active",
+        parent: "owner",
+        auth: auth_object
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
   $('#display_QR').click(function(){
     updateDisplayJson();
     let actions=[];
@@ -515,6 +606,10 @@ $(document).ready(function () {
     updateReviewStake();
     clearQR();
   });
+  $('#staking_accts').change(function(){
+    updatePermissions();
+    clearQR();
+  });
   $('#token_symbol').change(function(){
     openTab(null, null);
     updateIssuer();
@@ -622,6 +717,7 @@ label {
   <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
   <button class="tablinks" onclick="openTab(event, 'AddStake')">Add Stake</button>
   <button class="tablinks" onclick="openTab(event, 'ReviewStakes')">Review Stakes</button>
+  <button class="tablinks" onclick="openTab(event, 'StakingPermissions')">Permissions</button>
   <button class="tablinks" onclick="openTab(event, 'Display')">Token Info</button>
   <button class="tablinks" onclick="openTab(event, 'Issue')">Issue</button>
   <button class="tablinks" onclick="openTab(event, 'Open')">Enroll</button>
@@ -653,7 +749,7 @@ label {
   <input type="text" id="withdraw_to" name="withdraw_to" value="" disabled> <br>
   </p>
   <p>
-  <label for="withdraw_enabled">Freeze enabled:</label>
+  <label for="freeze_enabled">Freeze enabled:</label>
   <input type="checkbox" id="freeze_enabled" checked
          onclick="document.getElementById('freeze_mgr').disabled =
                   !document.getElementById('freeze_enabled').checked"> <br>
@@ -750,6 +846,22 @@ label {
 
   </div>
   <div id="nostakes" style="display:none;"> No stakes for this token </div>
+</div>
+
+<div id="StakingPermissions" class="tabcontent" style="background-color:Beige;">
+  <h3>Set account permissions for staking</h3>
+  <div>
+    <label for="staking_accts">Select account:</label>
+    <select name="staking_accts" id="staking_accts"> </select>
+    <p>
+    <label id="permission_status"></label><br>
+    <label id="permission_action"</label>
+    </p>
+    <div id="button-wrapper">
+      <input type="button" id="permission_QR" value="Create QR" class="button">
+      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    </div>
+  </div>
 </div>
 
 <div id="Display" class="tabcontent" style="background-color:Beige;">
