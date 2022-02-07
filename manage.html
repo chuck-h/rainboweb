@@ -168,7 +168,7 @@ function setupDisplayTab() {
   getRows("displays", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
       let jd;
-      if( data.rows.length != 0 ) {
+      if( data.rows.length != 0 && data.rows[0].json_meta != "") {
         document.getElementById("display_json").value = data.rows[0].json_meta;
       } else {
         document.getElementById("display_json").value = '{"balance_subtitle":"Wallet Balance"}';
