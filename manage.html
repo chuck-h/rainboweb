@@ -52,9 +52,6 @@ function openTab(evt, tabName) {
   if( tabName=="Display" ) {
     setupDisplayTab();
   }
-  if( tabName=="Open" ) {
-    setupOpenTab();
-  }
   if( tabName=="Freeze" ) {
     setupFreezeTab();
   }
@@ -66,9 +63,6 @@ function setupCreateTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
       if( data.rows.length != 0 ) {
-        document.getElementById("closed").checked = data.rows[0].membership_mgr != allowall;
-        document.getElementById("member_mgr").value = 
-          document.getElementById("closed").checked ? data.rows[0].membership_mgr : "";
         document.getElementById("withdraw_enabled").checked = data.rows[0].withdrawal_mgr != 'eosio.null';
         document.getElementById("withdraw_mgr").value = 
           document.getElementById("withdraw_enabled").checked ? data.rows[0].withdrawal_mgr : "";
@@ -81,6 +75,8 @@ function setupCreateTab() {
            offsetDateHTML(data.rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
            offsetDateHTML(data.rows[0].config_locked_until);
+        document.getElementById("member_symbol").value = data.rows[0].membership;
+        document.getElementById("broker_symbol").value = data.rows[0].broker;
         document.getElementById("MC_enabled").checked =
            data.rows[0].cred_limit != "" || data.rows[0].positive_limit != "";
         document.getElementById("cred_lim").value = data.rows[0].cred_limit;
@@ -183,15 +179,6 @@ function setupDisplayTab() {
     },
     function(x,s,e) { } );
 }
-function setupOpenTab() {
-  getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        document.getElementById("membership_mgr_acct").value = data.rows[0].membership_mgr;
-      }
-    },
-    function(x,s,e) { } );
-}
 
 function setupFreezeTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
@@ -260,6 +247,7 @@ function reviewOneStake(data) {
   document.getElementById("r_stake_contract").value = selectedRow.stake_token_contract;
   document.getElementById("r_stake_to").value = selectedRow.stake_to;
   document.getElementById("r_proportional").checked = selectedRow.proportional;
+  document.getElementById("r_fraction").value = selectedRow.reserve_fraction;
 }
 
 function updateIssuer() {
@@ -375,8 +363,6 @@ $(document).ready(function () {
             setTokenDatalist, emptyTokenDatalist);
   });
   $('#create_QR').click(function(){
-    let membership_mgr = !document.getElementById("closed").checked ? allowall :
-                         document.getElementById("member_mgr").value;
     let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
                          document.getElementById("withdraw_mgr").value;
     let withdraw_to = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
@@ -387,6 +373,8 @@ $(document).ready(function () {
     const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
     const config_date_input = document.getElementById("config_lock_until").value;
     const config_date = new Date(config_date_input=="" ? Date.now() : config_date_input);
+    let membership_symbol = document.getElementById("member_symbol").value;
+    let broker_symbol = document.getElementById("broker_symbol").value;
     let cred_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
                             document.getElementById("cred_lim").value;
     let pos_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
@@ -398,12 +386,13 @@ $(document).ready(function () {
         issuer: document.getElementById("issuer_account").value,
         maximum_supply: (document.getElementById("max_supply").value + " " +
                          document.getElementById("token_symbol").value),
-        membership_mgr: membership_mgr,
         withdrawal_mgr: withdrawal_mgr,
         withdraw_to: withdraw_to,
         freeze_mgr: freeze_mgr,
         redeem_locked_until: redeem_date.toISOString(),
         config_locked_until: config_date.toISOString(),
+        membership_symbol: document.getElementById("member_symbol").value,
+        broker_symbol: document.getElementById("broker_symbol").value,
         cred_limit_symbol: document.getElementById("cred_lim").value,
         pos_limit_symbol: document.getElementById("max_lim").value,
 
@@ -448,6 +437,7 @@ $(document).ready(function () {
         stake_token_contract: document.getElementById("stake_contract").value,
         stake_to: document.getElementById("stake_to").value,
         proportional: document.getElementById("proportional").checked,
+        reserve_fraction: parseInt(document.getElementById("fraction").value),
         memo: document.getElementById("stake_memo").value,
       },
       authorization: [{actor: "............1", permission: "active"}]
@@ -547,34 +537,6 @@ $(document).ready(function () {
                    document.getElementById("token_symbol").value),
         memo: document.getElementById("issue_memo").value
       },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    console.log(transaction);
-    makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
-  });
-  $('#enroll_QR').click(function(){
-    let opening = document.getElementById("enroll_checked").checked;
-    let actions=[];
-    let actiondata = {
-        owner: document.getElementById("member_acct").value,
-        symbolcode: document.getElementById("token_symbol").value,
-    };
-    if( opening ) {
-      if( document.getElementById("membership_mgr_acct").value == allowall) {
-        actiondata.ram_payer = document.getElementById("issuer_account").value;
-      } else {
-        actiondata.ram_payer = document.getElementById("membership_mgr_acct").value;
-      }
-    }
-    actions.push({
-      account: document.getElementById("contract_account").value,
-      name: opening ? "open" : "close",
-      data: actiondata,
       authorization: [{actor: "............1", permission: "active"}]
     })
 
@@ -745,7 +707,7 @@ label {
 
 <h1 style="display:inline; margin:0; float:right; color: red;">BETA</h1>
 <h2>Rainbow token management</h2>
-(Slightly outdated) Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACFbb36IimAt1gHd/view?usp=sharing"> here </a>
+Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACFbb36IimAt1gHd/view?usp=sharing"> here </a>
 <div style="background-color:Aquamarine;">
   <p>
   <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
@@ -769,7 +731,6 @@ label {
   <button class="tablinks" onclick="openTab(event, 'StakingPermissions')">Permissions</button>
   <button class="tablinks" onclick="openTab(event, 'Display')">Token Info</button>
   <button class="tablinks" onclick="openTab(event, 'Issue')">Issue</button>
-  <button class="tablinks" onclick="openTab(event, 'Open')">Enroll</button>
   <button class="tablinks" onclick="openTab(event, 'Redeem')">Redeem</button>
   <button class="tablinks" onclick="openTab(event, 'Freeze')">Freeze</button>
   <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
@@ -780,13 +741,6 @@ label {
   <h3>Token Creation</h3>
   <label for="max_supply">Maximum supply:</label>
   <input type="text" id="max_supply" name="max_supply" value="1000.0000"> <br>
-  <p>
-  <label for="closed">Closed membership:</label>
-  <input type="checkbox" id="closed" checked
-         onclick="document.getElementById('member_mgr').disabled = !document.getElementById('closed').checked"> <br>
-  <label for="member_mgr">Membership manager:</label>
-  <input type="text" id="member_mgr" name="member_mgr" value=""> <br>
-  </p>
   <p>
   <label for="withdraw_enabled">Withdrawal enabled:</label>
   <input type="checkbox" id="withdraw_enabled" 
@@ -810,6 +764,12 @@ label {
   <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br>
   <label for="config_lock_until">Configuration locked until:</label>
   <input type="datetime-local" id="config_lock_until" name="config_lock_until" value=""> <br>
+  <p>
+  <label for="member_symbol">Membership sister token:</label>
+  <input type="text" id="member_symbol" name="member_symbol" value=""> <br>
+  <label for="broker_symbol">Broker sister token:</label>
+  <input type="text" id="broker_symbol" name="broker_symbol" value=""> <br>
+  </p>
   <p>
   <label for="MC_enabled">Mutual Credit features:</label>
   <input type="checkbox" id="MC_enabled" 
@@ -861,6 +821,8 @@ label {
   <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
   <label for="proportional">Proportional unstake:</label>
   <input type="checkbox" id="proportional" > <br>
+  <label for="fraction">Reserve percentage:</label>
+  <input type="text" id="fraction" name="fraction" value="100"> <br>
   <br>
   <div id="button-wrapper">
     <input type="button" id="setstake_QR" value="Create QR" class="button">
@@ -888,6 +850,8 @@ label {
     <input type="text" id="r_stake_to" name="r_stake_to" value=""> <br>
     <label for="r_proportional">Proportional unstake:</label>
     <input type="checkbox" id="r_proportional" > <br>
+    <label for="r_fraction">Reserve percentage:</label>
+    <input type="text" id="r_fraction" name="r_fraction" value=""> <br>
     <br>
     <div id="button-wrapper">
       <input type="button" id="deletestake_QR" value="Delete Stake" class="button">
@@ -953,24 +917,6 @@ label {
     <input type="button" id="issue_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
-</div>
-
-<div id="Open" class="tabcontent" style="background-color:Beige;">
-  <h3>Enroll or remove member</h3>
-  <p>
-  <label for="enroll_checked">Enroll:</label>
-  <input type="radio" id="enroll_checked" name="enrollment" value="open" checked>
-  <label for="remove_checked" class="radiolabelhoriz">Remove:</label>
-  <input type="radio" id="remove_checked" name="enrollment" value="close"> <br>
-  </p>
-  <label for="member_acct">Account:</label>
-  <input type="text" id="member_acct" name="member_acct" value=""> <br><br>
-  <input type="text" id="membership_mgr_acct" hidden> <br><br>
-  <div id="button-wrapper">
-    <input type="button" id="enroll_QR" value="Create QR" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-  </div>
-
 </div>
 
 <div id="Redeem" class="tabcontent" style="background-color:Beige;">
