@@ -55,6 +55,9 @@ function openTab(evt, tabName) {
   if( tabName=="Freeze" ) {
     setupFreezeTab();
   }
+  if( tabName=="TopUpRam" ) {
+    setupRamTab();
+  }
   if( tabName=="Send" ) {
     setupSendTab();
   }
@@ -190,6 +193,13 @@ function setupFreezeTab() {
     document.getElementById("frozen_in_table").style.visibility = visibility;
     },
     function(x,s,e) { } );
+}
+
+function setupRamTab() {
+  document.getElementById("seeds2telos_qty").value = "5.0000";
+  document.getElementById("seeds2telos").checked = true;
+  document.getElementById("buyram").checked = true;
+  document.getElementById("buyramfor").innerHTML = "for "+document.getElementById("issuer_account").value;
 }
 
 function setupSendTab() {
@@ -587,6 +597,38 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#ram_QR').click(function(){
+    let actions=[];
+    if( document.getElementById("seeds2telos").checked ) {
+      actions.push({
+        account: "token.seeds", name: "transfer",
+        data: {
+          quantity: "5.0000 SEEDS",
+          from: "............1",
+          to: "amm.swaps",
+          memo: "swap,0,11"
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    if( document.getElementById("buyram").checked ) {
+      actions.push({
+        account: "eosio", name: "buyrambytes",
+        data: {
+          bytes: 1000,
+          payer: "............1",
+          receiver: document.getElementById("issuer_account").value,
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
   $('#send_QR').click(function(){
     let actions=[];
     actions.push({
@@ -733,6 +775,7 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
   <button class="tablinks" onclick="openTab(event, 'Issue')">Issue</button>
   <button class="tablinks" onclick="openTab(event, 'Redeem')">Redeem</button>
   <button class="tablinks" onclick="openTab(event, 'Freeze')">Freeze</button>
+  <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
   <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
 </div>
 
@@ -947,6 +990,27 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
   <textarea rows="2" id="freeze_memo" name="freeze_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
   <div id="button-wrapper">
     <input type="button" id="freeze_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+</div>
+
+<div id="TopUpRam" class="tabcontent" style="background-color:Beige;">
+  <h3>Add RAM to issuer account</h3>
+(Use this if you get an "insufficient RAM" error)<br><br>
+  <p>
+  This 2-step transaction uses Tswaps to convert SEEDS to TLOS, then uses the TLOS to buy RAM for the Issuer account
+  </p>
+  <label for="seeds2telos">Convert SEEDS to TLOS</label>
+  <input type="checkbox" id="seeds2telos" 
+         onclick="document.getElementById('seeds2telos_qty').disabled =
+                  !document.getElementById('seeds2telos').checked"> <br>
+  <label for="seeds2telos_qty">SEEDS:</label>
+  <input type="text" id="seeds2telos_qty" name="seeds2telos_qty"> <br>
+  <label for="buyram">Buy 1K of RAM</label>
+  <input type="checkbox" id="buyram" > <br> <label id="buyramfor"></label>
+  <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="ram_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
   </div>
 </div>
