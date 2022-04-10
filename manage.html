@@ -504,7 +504,7 @@ $(document).ready(function () {
         parent: "owner",
         auth: auth_object
       },
-      authorization: [{actor: "............1", permission: "active"}]
+      authorization: [{actor: "............1", permission: "owner"}]
     })
     transaction =  {
       actions: actions
@@ -638,7 +638,7 @@ $(document).ready(function () {
                    document.getElementById("token_symbol").value),
         from: document.getElementById("send_from").value,
         to: document.getElementById("send_to").value,
-        memo: document.getElementById("freeze_memo").value
+        memo: document.getElementById("send_memo").value
       },
       authorization: [{actor: "............1", permission: "active"}]
     })
