@@ -43,10 +43,10 @@ function openTab(evt, tabName) {
   if( tabName=="Approve" ) {
     setupApproveTab();
   }
-  if( tabName=="ReviewStakes" ) {
+  if( tabName=="ReviewBacking" ) {
     setupReviewStakesTab();
   }
-  if( tabName=="StakingPermissions" ) {
+  if( tabName=="BackingPermissions" ) {
     setupPermissionsTab();
   }
   if( tabName=="Display" ) {
@@ -769,9 +769,9 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'Create')">Create</button>
   <button class="tablinks" onclick="openTab(event, 'Approve')">Approve</button>
-  <button class="tablinks" onclick="openTab(event, 'AddStake')">Add Stake</button>
-  <button class="tablinks" onclick="openTab(event, 'ReviewStakes')">Review Stakes</button>
-  <button class="tablinks" onclick="openTab(event, 'StakingPermissions')">Permissions</button>
+  <button class="tablinks" onclick="openTab(event, 'AddBacking')">Add Backing</button>
+  <button class="tablinks" onclick="openTab(event, 'ReviewBacking')">Review Backing</button>
+  <button class="tablinks" onclick="openTab(event, 'BackingPermissions')">Permissions</button>
   <button class="tablinks" onclick="openTab(event, 'Display')">Token Info</button>
   <button class="tablinks" onclick="openTab(event, 'Issue')">Issue</button>
   <button class="tablinks" onclick="openTab(event, 'Redeem')">Redeem</button>
@@ -849,21 +849,21 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
 
 </div>
 
-<div id="AddStake" class="tabcontent" style="background-color:Beige;">
-  <h3>Add Stake</h3>
+<div id="AddBacking" class="tabcontent" style="background-color:Beige;">
+  <h3>Add Backing</h3>
   <label for="bucket">Token quantity:</label>
   <input type="text" id="bucket" name="bucket" value="1.0000"> <br>
-  <label for="staked">Staked quantity:</label>
+  <label for="staked">Backing quantity:</label>
   <input type="text" id="staked" name="staked" value="1.0000"> <br>
-  <label for="stake_symbol">Staked symbol:</label>
+  <label for="stake_symbol">Backing symbol:</label>
   <input type="text" id="stake_symbol" name="stake_symbol" value=""> <br>
-  <label for="stake_contract">Staked contract:</label>
+  <label for="stake_contract">Backing token contract:</label>
   <input type="text" id="stake_contract" name="stake_contract" value=""> <br>
-  <label for="stake_to">Stake to (escrow):</label>
+  <label for="stake_to">Backing destination (escrow):</label>
   <input type="text" id="stake_to" name="stake_to" value=""> <br>
   <label for="stake_memo">Memo:</label>
   <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
-  <label for="proportional">Proportional unstake:</label>
+  <label for="proportional">Proportional redeem:</label>
   <input type="checkbox" id="proportional" > <br>
   <label for="fraction">Reserve percentage:</label>
   <input type="text" id="fraction" name="fraction" value="100"> <br>
@@ -875,24 +875,24 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
 
 </div>
 
-<div id="ReviewStakes" class="tabcontent" style="background-color:Beige;">
-  <h3>Review Stakes</h3>
+<div id="ReviewBacking" class="tabcontent" style="background-color:Beige;">
+  <h3>Review Backing</h3>
   <div id="stakeselector">
     <p>
-    <label for="stakes">Select stake:</label>
+    <label for="stakes">Select backing:</label>
     <select name="stakes" id="stakes"> </select>
     </p>
     <label for="r_bucket">Token quantity:</label>
     <input type="text" id="r_bucket" name="r_bucket" value="1.0000"> <br>
-    <label for="r_staked">Staked quantity:</label>
+    <label for="r_staked">Backing quantity:</label>
     <input type="text" id="r_staked" name="r_staked" value="1.0000"> <br>
-    <label for="r_stake_symbol">Staked symbol:</label>
+    <label for="r_stake_symbol">Backing symbol:</label>
     <input type="text" id="r_stake_symbol" name="r_stake_symbol" value=""> <br>
-    <label for="r_stake_contract">Staked contract:</label>
+    <label for="r_stake_contract">Backing token contract:</label>
     <input type="text" id="r_stake_contract" name="r_stake_contract" value=""> <br>
-    <label for="r_stake_to">Stake to (escrow):</label>
+    <label for="r_stake_to">Backing destination (escrow):</label>
     <input type="text" id="r_stake_to" name="r_stake_to" value=""> <br>
-    <label for="r_proportional">Proportional unstake:</label>
+    <label for="r_proportional">Proportional redeem:</label>
     <input type="checkbox" id="r_proportional" > <br>
     <label for="r_fraction">Reserve percentage:</label>
     <input type="text" id="r_fraction" name="r_fraction" value=""> <br>
@@ -906,8 +906,8 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
   <div id="nostakes" style="display:none;"> No stakes for this token </div>
 </div>
 
-<div id="StakingPermissions" class="tabcontent" style="background-color:Beige;">
-  <h3>Set account permissions for staking</h3>
+<div id="BackingPermissions" class="tabcontent" style="background-color:Beige;">
+  <h3>Set account permissions for backing</h3>
   <div>
     <label for="staking_accts">Select account:</label>
     <select name="staking_accts" id="staking_accts"> </select>
