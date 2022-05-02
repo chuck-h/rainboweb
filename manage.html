@@ -565,7 +565,7 @@ $(document).ready(function () {
         owner: document.getElementById("redeem_from").value,
         quantity: (document.getElementById("redeem_qty").value + " " +
                    document.getElementById("token_symbol").value),
-        burn: false,
+        do_redeem: true,
         memo: document.getElementById("redeem_memo").value
       },
       authorization: [{actor: "............1", permission: "active"}]
