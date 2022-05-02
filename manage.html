@@ -109,12 +109,12 @@ function setupApproveTab() {
 }
 
 function setupPermissionsTab() {
-    getRows("stakes", document.getElementById("token_symbol").value,
+    getRows("backings", document.getElementById("token_symbol").value,
             function(data, status, jqXHR) {
               $("#staking_accts").empty();
               const accts = new Set();
               accts.add(document.getElementById("issuer_account").value);
-              data.rows.map( function(row) { accts.add(row.stake_to); } );
+              data.rows.map( function(row) { accts.add(row.escrow); } );
               accts.forEach(function(acct) {
                 $("<option/>").html(`${acct}`).appendTo("#staking_accts");
               });
@@ -210,7 +210,7 @@ function setupSendTab() {
 }
 
 function setupReviewStakesTab() {
-    getRows("stakes", document.getElementById("token_symbol").value,
+    getRows("backings", document.getElementById("token_symbol").value,
             function(data, status, jqXHR) {
               if( data.rows.length == 0 ) {
                 document.getElementById("stakeselector").style.display = "none";
@@ -218,7 +218,7 @@ function setupReviewStakesTab() {
               } else {
                 $("#stakes").empty();
                 data["rows"].forEach(function(row) {
-                  $("<option/>").html(`${row.index} ${row.stake_per_bucket}`).appendTo("#stakes");
+                  $("<option/>").html(`${row.index} ${row.backs_per_bucket}`).appendTo("#stakes");
                 });
                 reviewOneStake(data);
               }        
@@ -230,7 +230,7 @@ function setupReviewStakesTab() {
 }
 
 function updateReviewStake() {
-  getRows("stakes", document.getElementById("token_symbol").value,
+  getRows("backings", document.getElementById("token_symbol").value,
           function(data, status, jqXHR) {
             reviewOneStake(data);
           },
@@ -252,10 +252,10 @@ function reviewOneStake(data) {
   const selectedIndex = selectedStake.split(" ")[0];
   const selectedRow = data.rows.find(function(row){return row.index==selectedIndex;});
   document.getElementById("r_bucket").value = selectedRow.token_bucket.split(" ")[0];
-  document.getElementById("r_staked").value = selectedRow.stake_per_bucket.split(" ")[0];
-  document.getElementById("r_stake_symbol").value = selectedRow.stake_per_bucket.split(" ")[1];
-  document.getElementById("r_stake_contract").value = selectedRow.stake_token_contract;
-  document.getElementById("r_stake_to").value = selectedRow.stake_to;
+  document.getElementById("r_staked").value = selectedRow.backs_per_bucket.split(" ")[0];
+  document.getElementById("r_stake_symbol").value = selectedRow.backs_per_bucket.split(" ")[1];
+  document.getElementById("r_stake_contract").value = selectedRow.backing_token_contract;
+  document.getElementById("r_stake_to").value = selectedRow.escrow;
   document.getElementById("r_proportional").checked = selectedRow.proportional;
   document.getElementById("r_fraction").value = selectedRow.reserve_fraction;
 }
@@ -438,14 +438,14 @@ $(document).ready(function () {
   $('#setstake_QR').click(function(){
     let actions=[];
     actions.push({
-      account: document.getElementById("contract_account").value, name: "setstake",
+      account: document.getElementById("contract_account").value, name: "setbacking",
       data: {
         token_bucket: (document.getElementById("bucket").value + " " +
                          document.getElementById("token_symbol").value),
-        stake_per_bucket: (document.getElementById("staked").value + " " +
+        backs_per_bucket: (document.getElementById("staked").value + " " +
                          document.getElementById("stake_symbol").value),
-        stake_token_contract: document.getElementById("stake_contract").value,
-        stake_to: document.getElementById("stake_to").value,
+        backing_token_contract: document.getElementById("stake_contract").value,
+        escrow: document.getElementById("stake_to").value,
         proportional: document.getElementById("proportional").checked,
         reserve_fraction: parseInt(document.getElementById("fraction").value),
         memo: document.getElementById("stake_memo").value,
@@ -463,9 +463,9 @@ $(document).ready(function () {
   $('#deletestake_QR').click(function(){
     let actions=[];
     actions.push({
-      account: document.getElementById("contract_account").value, name: "deletestake",
+      account: document.getElementById("contract_account").value, name: "deletebacking",
       data: {
-        stake_index: document.getElementById("stakes").value.split(" ")[0],
+        backing_index: document.getElementById("stakes").value.split(" ")[0],
         symbolcode: document.getElementById("token_symbol").value,
         memo: "",
       },
@@ -903,7 +903,7 @@ Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACF
     </div>
 
   </div>
-  <div id="nostakes" style="display:none;"> No stakes for this token </div>
+  <div id="nostakes" style="display:none;"> No backing relationships for this token </div>
 </div>
 
 <div id="BackingPermissions" class="tabcontent" style="background-color:Beige;">
