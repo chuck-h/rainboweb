@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/4.11.7/ajv.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script type="text/javascript">
 var testnet_checked;
@@ -10,6 +11,8 @@ var test_contract = "histrdotsuds";
 var mainnet_contract = "rainbowproto";
 var active_auth;
 const allowall = "allowallacct";    
+
+const ajv = new Ajv({allErrors: true, verbose: true});
 
 function testnet_status () {
   testnet_checked = document.getElementById("testmode").checked;
@@ -170,7 +173,9 @@ function setupDisplayTab() {
       if( data.rows.length != 0 && data.rows[0].json_meta != "") {
         document.getElementById("display_json").value = data.rows[0].json_meta;
       } else {
-        document.getElementById("display_json").value = '{"balance_subtitle":"Wallet Balance"}';
+        document.getElementById("display_json").value =
+         '{"chain":"Telos", "symbol":"'+document.getElementById("token_symbol").value+'",' +
+         '"account":"'+document.getElementById("contract_account").value+'"}';
       }
       jd = JSON.parse(document.getElementById("display_json").value);
       document.getElementById("token_name").value = jd.name;
@@ -181,6 +186,37 @@ function setupDisplayTab() {
       document.getElementById("balance_subtitle").value = jd.balance_subtitle;
     },
     function(x,s,e) { } );
+  getSchema();
+}
+
+var validate;
+function getSchema() {
+  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
+                                         : "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: "tmastr.seeds",
+                table: "schema",
+                scope: "tmastr.seeds",
+                limit: 1,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR){
+        if( data.rows.length != 0 ) {
+          schema = JSON.parse(data.rows[0].schema);
+        }
+      console.log(schema);
+      validate = ajv.compile(schema); 
+      },
+
+      error: function(xhr, status, error) {
+        alert(xhr.responseText);
+      }
+    });
 }
 
 function setupFreezeTab() {
@@ -274,7 +310,6 @@ function updateIssuer() {
 }
 function updateDisplayJson() {
   let jsonData = document.getElementById("display_json").value;
-  console.log(jsonData);
   if( jsonData == "" ) {
     jsonData = "{}";
   }
@@ -537,6 +572,19 @@ $(document).ready(function () {
       document.getElementById("web_link").value,
       '_blank'
     );
+  });
+  $('#validate_button').click(function(){
+    const valid = validate(JSON.parse(document.getElementById("display_json").value));
+    if(valid) {
+      alert("Passed validation");
+    } else {
+      const errs = validate.errors;
+      var complaints = "";
+      for( const e of errs ) {
+        complaints += "\n"+e.message;
+      }
+      alert(complaints);
+    }
   });
   $('#issue_QR').click(function(){
     let actions=[];
@@ -944,7 +992,8 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <input type="checkbox" id="edit_display_json" > <br>
   <label for="display_json">JSON data:</label>
   <textarea rows="4" id="display_json" name="display_json" readonly
-           value="{}" style="vertical-align:middle;"> </textarea> <br>
+           value="{}" style="vertical-align:middle;"> </textarea>
+  <input type="button" id="validate_button" value="Validate JSON" class="button"> <br>
   </p>
   <div id="button-wrapper">
     <input type="button" id="display_QR" value="Create QR" class="button">
