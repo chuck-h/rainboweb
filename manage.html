@@ -182,8 +182,8 @@ function setupDisplayTab() {
       document.getElementById("logo").value = jd.logo;
       document.getElementById("logo_lg").value = jd.logo_lg;
       document.getElementById("web_link").value = jd.web_link;
-      document.getElementById("background_img").value = jd.background;
-      document.getElementById("balance_subtitle").value = jd.balance_subtitle;
+      document.getElementById("background_img").value = jd.bg_image;
+      document.getElementById("balance_subtitle").value = jd.subtitle;
     },
     function(x,s,e) { } );
   getSchema();
@@ -319,8 +319,8 @@ function updateDisplayJson() {
     obj.logo = document.getElementById("logo").value;
     obj.logo_lg = document.getElementById("logo_lg").value;
     obj.web_link = document.getElementById("web_link").value;
-    obj.background = document.getElementById("background_img").value;
-    obj.balance_subtitle = document.getElementById("balance_subtitle").value;
+    obj.bg_image = document.getElementById("background_img").value;
+    obj.subtitle = document.getElementById("balance_subtitle").value;
     document.getElementById("display_json").value = JSON.stringify(obj);
   }
   catch(err) {
@@ -574,6 +574,7 @@ $(document).ready(function () {
     );
   });
   $('#validate_button').click(function(){
+    updateDisplayJson();
     const valid = validate(JSON.parse(document.getElementById("display_json").value));
     if(valid) {
       alert("Passed validation");
@@ -712,8 +713,9 @@ $(document).ready(function () {
     updateIssuer();
   });  
   $('#edit_display_json').change(function(){
-  document.getElementById("display_json").readOnly = 
-    !document.getElementById("edit_display_json").checked;
+    document.getElementById("display_json").readOnly = 
+      !document.getElementById("edit_display_json").checked;
+    updateDisplayJson();
   });  
 
   $('input').change(function(){
