@@ -238,8 +238,20 @@ function setupRamTab() {
   document.getElementById("buyramfor").innerHTML = "for "+document.getElementById("issuer_account").value;
 }
 
-function setupSendTab() {
-  document.getElementById("send_qty").value = "1.0000";
+function setupSendTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("send_qty").value = "1";
+        } else {
+          document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+
   document.getElementById("send_from").value = "";
   document.getElementById("send_to").value = "";
   document.getElementById("send_memo").value = "";
