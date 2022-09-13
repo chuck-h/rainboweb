@@ -168,7 +168,6 @@ function updateDelete() {
     });
   }
   let t = "";
-  lowerbound = "";
   for (const uc of usecases) {
     const data ={ code: tmastr_contract,
                   table: "acceptances",
@@ -194,8 +193,8 @@ function updateDelete() {
     });
   }
   document.getElementById("acceptances").value = t;
-  
-
+  setSymbolFromId(id, document.getElementById("del_token_symbol"),
+     document.getElementById("del_token_contract"));
 }
 
 function loadFromContract() {
@@ -211,6 +210,36 @@ function loadFromContract() {
           });
   }
   // else hypha 
+}
+
+function setSymbolFromId(id, symbol_field, contract_field=null) {
+    const data ={ code: tmastr_contract,
+                  table: "tokens",
+                  scope: tmastr_contract,
+                  lower_bound: id,
+                  upper_bound: id,
+                  json: "true" };
+    const chain_endpoint = "https://telos.caleos.io/";
+    const url = chain_endpoint + "v1/chain/get_table_rows";
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: 
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              symbol_field.value = data.rows[0].symbolcode;
+              if ( contract_field != null ) {
+                contract_field.value = data.rows[0].contract;
+              }
+            }
+          },
+      error: function(xhr, status, error) {
+      }
+    });
+  
 }
 
 function esrGenUrl() {
@@ -489,9 +518,13 @@ label {
   <p>
   <div id="approved_in_table" style="visibility:hidden;">This token is already approved on-chain.</div>
   <label for="token_id">Id:</label>
-  <input type="text" id="token_id" name="token_id" value="" > <br>
+  <input type="text" id="token_id" name="token_id" value=""
+    onchange="setSymbolFromId(document.getElementById('token_id').value,
+               document.getElementById('token_symbol'),
+               document.getElementById('token_contract'));" > <br>
   <label for="token_symbol">Token symbol:</label>
-  <input type="text" id="token_symbol" name="token_symbol" value="" > <br>
+  <input type="text" id="token_symbol" name="token_symbol" value="" readonly > 
+  <input type="text" id="token_contract" name="token_contract" value="" readonly > <br>
   <label for="usecase">usecase:</label>
   <input type="text" id="usecase" name="usecase" value="" > <br>
   <label for="approve">Approve:</label>
@@ -544,7 +577,8 @@ label {
   <label for="del_token_id">Id:</label>
   <input type="text" id="del_token_id" name="del_token_id" value="" onchange="updateDelete()"> <br>
   <label for="del_token_symbol">Token symbol:</label>
-  <input type="text" id="del_token_symbol" name="del_token_symbol" value="" "> <br>
+  <input type="text" id="del_token_symbol" name="del_token_symbol" value="" readonly >
+  <input type="text" id="del_token_contract" name="del_token_contract" value="" readonly > <br>
   </p>
    <br>
   <div id="button-wrapper">
