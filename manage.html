@@ -585,6 +585,13 @@ $(document).ready(function () {
       '_blank'
     );
   });
+  $('#holders_button').click(function(){
+    window.open(
+      `https://eosauthority.com/tokens/${document.getElementById("contract_account").value}/`+
+      `${document.getElementById("token_symbol").value}?network=telos`,
+      '_blank'
+    );
+  });
   $('#validate_button').click(function(){
     updateDisplayJson();
     const valid = validate(JSON.parse(document.getElementById("display_json").value));
@@ -1020,7 +1027,8 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <label for="issue_qty">Quantity:</label>
   <input type="text" id="issue_qty" name="issue_qty" value="1.0000"> <br>
   <label for="issue_memo">Memo:</label>
-  <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> 
+  <input type="button" id="holders_button" value="Show token holders" class="button"> <br><br>
   <div id="button-wrapper">
     <input type="button" id="issue_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
