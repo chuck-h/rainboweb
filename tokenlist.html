@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/4.11.7/ajv.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script type="text/javascript">
+
+var tmastr_contract = "tmastr.seeds";
+
+
+const ajv = new Ajv({allErrors: true, verbose: true});
+
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  if( evt != null) {
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+  }
+  clearQR();
+  if( tabName=="Submit" ) {
+    setupSubmitTab();
+  }
+  if( tabName=="Approve" ) {
+    setupApproveTab();
+  }
+  if( tabName=="TokenList" ) {
+    setupTokenListTab();
+  }
+  if( tabName=="TopUpRam" ) {
+    setupRamTab();
+  }  
+}
+
+
+function setupTokenListTab() {
+  let t = "";
+  let more = true;
+  let lowerbound = "";
+  const chain_endpoint = "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  while (more) {
+    const data ={ code: tmastr_contract,
+                  table: "tokens",
+                  scope: tmastr_contract,
+                  lower_bound: lowerbound,
+                  json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: 
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              for (const row of data.rows) {
+                t += `${row.id}\t${row.symbolcode}\t${row.contract}\n`
+              }
+            }
+            more = data.more;
+            lowerbound = data.next_key;
+          },
+      async: false,
+      error: function(xhr, status, error) {
+      }
+    });
+  }
+  document.getElementById("tokenlist").value = t;
+  
+  t = "";
+  more = true;
+  lowerbound = "";
+  while (more) {
+    const data ={ code: tmastr_contract,
+                  table: "usecases",
+                  scope: tmastr_contract,
+                  lower_bound: lowerbound,
+                  json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: 
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              for (const row of data.rows) {
+                t += `${row.usecase}\t${row.curator}\n`;
+              }
+            }
+            more = data.more;
+            lowerbound = data.next_key;
+          },
+      async: false,
+      error: function(xhr, status, error) {
+      }
+    });
+  }
+  document.getElementById("usecaselist").value = t;
+
+}
+
+function setupSubmitTab() {
+  document.getElementById("submitter").value = "";
+  document.getElementById("chain").value = "Telos";
+  document.getElementById("contract").value = "";
+  document.getElementById("symbolcode").value = "";
+  document.getElementById("json").value = "{}";
+  updateSubmit();
+}
+
+function setupApproveTab() {
+}
+
+
+function setupRamTab() {
+  document.getElementById("seeds2telos_qty").value = "5.0000";
+  document.getElementById("seeds2telos").checked = true;
+  document.getElementById("buyram").checked = true;
+}
+
+function updateSubmit() {
+  document.getElementById("loadbutton").disabled =
+    !( ["rainbowproto","rainbo.seeds","hypha.hypha","dao.hypha"].includes(document.getElementById("contract").value) );
+}
+
+function updateDelete() {
+  let id = document.getElementById("del_token_id").value;
+  let usecases = [];
+  let more = true;
+  let lowerbound = "";
+  const chain_endpoint = "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  while (more) {
+    const data ={ code: tmastr_contract,
+                  table: "usecases",
+                  scope: tmastr_contract,
+                  lower_bound: lowerbound,
+                  json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: 
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              usecases.push(...data.rows);
+            }
+            more = data.more;
+            lowerbound = data.next_key;
+          },
+      async: false,
+      error: function(xhr, status, error) {
+      }
+    });
+  }
+  let t = "";
+  lowerbound = "";
+  for (const uc of usecases) {
+    const data ={ code: tmastr_contract,
+                  table: "acceptances",
+                  scope: uc.usecase,
+                  lower_bound: id,
+                  upper_bound: id,
+                  json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: 
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              t += uc.usecase;
+            }
+          },
+      async: false,
+      error: function(xhr, status, error) {
+      }
+    });
+  }
+  document.getElementById("acceptances").value = t;
+  
+
+}
+
+function loadFromContract() {
+  let c = document.getElementById("contract").value;
+  if ( c == "rainbowproto" || c == "rainbo.seeds") {
+    getRows(c, "displays", document.getElementById("symbolcode").value,
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              document.getElementById("json").value = data.rows[0].json_meta;
+            }
+          },
+          function(x,s,e) { 
+          });
+  }
+  // else hypha 
+}
+
+function esrGenUrl() {
+  const esr_gen_base = "https://cc42.xyz";
+  return esr_gen_base + '/qr';
+}
+function makeQR(transaction) {
+    $.ajax({
+      type: "POST",
+      url: esrGenUrl(),
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+function clearQR() {
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
+}
+
+function getRows(contract, table, scope, action, erroraction=null) {
+  const chain_endpoint = "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: contract,
+                table: table,
+                scope: scope,
+                lower_bound: lowerbound,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: action,
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+}
+
+$(document).ready(function () {
+  $('#submit_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: tmastr_contract, name: "submittoken",
+      data: {
+        submitter: document.getElementById("submitter").value,
+        chain: document.getElementById("chain").value,
+        contract: document.getElementById("contract").value,
+        symbolcode: document.getElementById("symbolcode").value,
+        json: document.getElementById("json").value,
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#approve_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: tmastr_contract, name: "accepttoken",
+      data: {
+        id: document.getElementById("token_id").value,
+        symbolcode: document.getElementById("token_symbol").value,
+        usecase: document.getElementById("usecase").value,
+        accept: document.getElementById("approve_checked").checked,
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#ram_QR').click(function(){
+    let actions=[];
+    if( document.getElementById("seeds2telos").checked ) {
+      actions.push({
+        account: "token.seeds", name: "transfer",
+        data: {
+          quantity: "5.0000 SEEDS",
+          from: "............1",
+          to: "amm.swaps",
+          memo: "swap,0,11"
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    if( document.getElementById("buyram").checked ) {
+      actions.push({
+        account: "eosio", name: "buyrambytes",
+        data: {
+          bytes: 1000,
+          payer: "............1",
+          receiver: document.getElementById("buyramfor").value,
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#delete_QR').click(function(){
+    let actions=[];
+    actions.push({
+      account: tmastr_contract, name: "deletetoken",
+      data: {
+        id: document.getElementById("del_token_id").value,
+        symbolcode: document.getElementById("del_token_symbol").value,
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+
+});
+</script>
+
+<style>
+body {
+  font-size: 100%;
+}
+@media only screen and (max-width: 740px) {
+  body {
+    font-size: 150%;
+  }
+  .button {
+    text-align: center;
+    font-size: 100%;
+  }
+}
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+label {
+  display: inline-block;
+  width: 12em;
+  text-align: right;
+}
+.radiolabelhoriz {
+  display: inline-block;
+  width: 6em;
+  text-align: right;
+}
+
+
+</style>
+</head>
+<body>
+
+<h1 style="display:inline; margin:0; float:right; color: red;">BETA</h1>
+<h2>Master token list assistant</h2>
+
+<div style="background-color:Gold">
+  <p>
+  <br>
+  Submit and approve tokens for Seeds master token list.
+  </p>
+  <br>
+</div>
+<br>
+
+<div class="tab">
+  <button class="tablinks" onclick="openTab(event, 'TokenList')">Token List</button>
+  <button class="tablinks" onclick="openTab(event, 'Submit')">Submit New</button>
+  <button class="tablinks" onclick="openTab(event, 'Approve')">Accept Usecase</button>
+  <button class="tablinks" onclick="openTab(event, 'Delete')">Delete Token</button>
+  <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
+</div>
+
+<div id="TokenList" class="tabcontent" style="background-color:Beige;">
+  <h3>Existing tokens</h3>
+  <p>
+  <textarea id="tokenlist" rows="10" cols = "30" name="tokenlist" 
+           value="" style="vertical-align:middle;"> </textarea>
+  </p>
+   <br>
+  <h3>Existing use cases & curators</h3>
+  <p>
+  <textarea id="usecaselist" rows="5" cols = "30" name="usecaselist" 
+           value="" style="vertical-align:middle;"> </textarea>
+  </p>
+   <br>
+
+</div>
+
+<div id="Submit" class="tabcontent" style="background-color:Azure;" >
+  <h3>Token Submission</h3>
+  <label for="submitter">Submitter:</label>
+  <input type="text" id="submitter" name="submitter" value="" > <br>
+  <label for="chain">chain:</label>
+  <input type="text" id="chain" name="chain" value="" > <br>
+  <label for="contract">contract:</label>
+  <input type="text" id="contract" name="contract" value="" onchange="updateSubmit()" >
+  <input type="button" value="Load from Contract" id="loadbutton"
+         onclick="loadFromContract()" class="button" disabled> <br>
+  <label for="symbolcode">symbolcode:</label>
+  <input type="text" id="symbolcode" name="symbolcode" value="" > <br>
+  <label for="json">json:</label>
+  <textarea rows="6" id="json" name="json" 
+           value="{}" style="width: 100%; max-width: 100%;"> </textarea>
+  <p>
+  <div id="button-wrapper">
+    <input type="button" id="submit_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+
+</div>
+
+<div id="Approve" class="tabcontent" style="background-color:Beige;">
+  <h3>Approve or reject token for usecase</h3>
+  <p>
+  <div id="approved_in_table" style="visibility:hidden;">This token is already approved on-chain.</div>
+  <label for="token_id">Id:</label>
+  <input type="text" id="token_id" name="token_id" value="" > <br>
+  <label for="token_symbol">Token symbol:</label>
+  <input type="text" id="token_symbol" name="token_symbol" value="" > <br>
+  <label for="usecase">usecase:</label>
+  <input type="text" id="usecase" name="usecase" value="" > <br>
+  <label for="approve">Approve:</label>
+  <input type="radio" id="approve_checked" name="approval" value="approved" checked>
+  <label for="reject_checked" class="radiolabelhoriz">Reject:</label>
+  <input type="radio" id="reject_checked" name="approval" value="rejected"> <br>
+  </p>
+   <br>
+  <div id="button-wrapper">
+    <input type="button" id="approve_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+
+</div>
+
+<div id="TopUpRam" class="tabcontent" style="background-color:Beige;">
+  <h3>Add RAM to an account</h3>
+(Use this if you get an "insufficient RAM" error)<br><br>
+  <p>
+  This 2-step transaction uses Tswaps to convert SEEDS to TLOS, then uses the TLOS to buy RAM for the specified account
+  </p>
+  <label for="seeds2telos">Convert SEEDS to TLOS</label>
+  <input type="checkbox" id="seeds2telos" 
+         onclick="document.getElementById('seeds2telos_qty').disabled =
+                  !document.getElementById('seeds2telos').checked"> <br>
+  <label for="seeds2telos_qty">SEEDS:</label>
+  <input type="text" id="seeds2telos_qty" name="seeds2telos_qty"> <br>
+  <label for="buyram">Buy 1K of RAM</label>
+  <input type="checkbox" id="buyram" > <br> 
+  <label for="buyramfor">for account:</label>
+  <input type="text" id="buyramfor" name="buyramfor" value="" > <br>
+
+  <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="ram_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+</div>
+
+<div id="Delete" class="tabcontent" style="background-color:Beige;">
+  <h3>Delete token from list</h3>
+  Any usecase acceptances shown below must be removed before the token can be deleted.<br>
+  <p>
+  Existing usecases accepted:
+  <textarea id="acceptances" rows="5" cols = "30" name="acceptancelist" 
+           value="" style="vertical-align:middle;"> </textarea>
+  </p>
+
+  <p>
+  <label for="del_token_id">Id:</label>
+  <input type="text" id="del_token_id" name="del_token_id" value="" onchange="updateDelete()"> <br>
+  <label for="del_token_symbol">Token symbol:</label>
+  <input type="text" id="del_token_symbol" name="del_token_symbol" value="" "> <br>
+  </p>
+   <br>
+  <div id="button-wrapper">
+    <input type="button" id="delete_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+
+</div>
+
+
+<div id=qrcode> </div>
+<div id=esr> </div>
+
+</body>
+</html>
+
