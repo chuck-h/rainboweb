@@ -46,6 +46,9 @@ function openTab(evt, tabName) {
   if( tabName=="Approve" ) {
     setupApproveTab();
   }
+  if( tabName=="AddBacking" ) {
+    setupAddBackingTab();
+  }
   if( tabName=="ReviewBacking" ) {
     setupReviewStakesTab();
   }
@@ -54,6 +57,12 @@ function openTab(evt, tabName) {
   }
   if( tabName=="Display" ) {
     setupDisplayTab();
+  }
+  if( tabName=="Issue" ) {
+    setupIssueTab();
+  }
+  if( tabName=="Redeem" ) {
+    setupRedeemTab();
   }
   if( tabName=="Freeze" ) {
     setupFreezeTab();
@@ -107,6 +116,21 @@ function setupApproveTab() {
         visibility = "visible";
       }
     document.getElementById("approved_in_table").style.visibility = visibility;
+    },
+    function(x,s,e) { } );
+}
+
+function setupAddBackingTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("bucket").value = "1";
+        } else {
+          document.getElementById("bucket").value = `1.${qtysplit[1]}`; 
+        } 
+      }
     },
     function(x,s,e) { } );
 }
@@ -219,6 +243,41 @@ function getSchema() {
     });
 }
 
+function setupIssueTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("issue_qty").value = "1";
+        } else {
+          document.getElementById("issue_qty").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+
+  document.getElementById("issue_memo").value = "";
+}
+
+function setupRedeemTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("redeem_qty").value = "1";
+        } else {
+          document.getElementById("redeem_qty").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+
+  document.getElementById("redeem_from").value = "";
+  document.getElementById("redeem_memo").value = "";
+}
+
 function setupFreezeTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
@@ -320,6 +379,7 @@ function updateIssuer() {
           });
   
 }
+
 function updateDisplayJson() {
   let jsonData = document.getElementById("display_json").value;
   if( jsonData == "" ) {
