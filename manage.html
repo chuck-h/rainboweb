@@ -426,8 +426,10 @@ function clearQR() {
 }
 function setTokenDatalist(data, status, jqXHR) {
   $("#tokens").empty();
-  data["rows"].forEach(function(row) {
-    $("<option/>").html(row.symbolcode).appendTo("#tokens");
+  data["rows"].sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
+                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
+    .forEach(function(row) {
+      $("<option/>").html(row.symbolcode).appendTo("#tokens");
   });
 }
 function emptyTokenDatalist(x,s,e) {
@@ -440,6 +442,7 @@ function getRows(table, scope, action, erroraction=null) {
   const data ={ code: document.getElementById("contract_account").value,
                 table: table,
                 scope: scope,
+                limit: 40,
                 json: "true" };
     $.ajax({
       type: "POST",
