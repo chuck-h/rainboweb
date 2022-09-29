@@ -273,7 +273,6 @@ function getRows(contract, table, scope, action, erroraction=null) {
   const data ={ code: contract,
                 table: table,
                 scope: scope,
-                lower_bound: lowerbound,
                 json: "true" };
     $.ajax({
       type: "POST",
