@@ -886,6 +886,8 @@ label {
 <h2>Rainbow token management</h2>
 Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here</a>
 . Reference document <a href="https://drive.google.com/file/d/1JjoZ19i5kznDx2N3ACFbb36IimAt1gHd/view?usp=sharing"> here </a>
+. Rainbow contract repository <a href="https://github.com/chuck-h/seeds-smart-contracts/blob/master/include/seeds.rainbows.hpp"> here</a>
+. This website repository <a href="https://github.com/chuck-h/rainboweb"> here</a>.
 <div style="background-color:Aquamarine;">
   <p>
   <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
@@ -940,9 +942,10 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <input type="text" id="freeze_mgr" name="freeze_mgr" value=""> <br>
   </p>
   <label for="redeem_lock_until">Redeem locked until:</label>
-  <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br>
+  <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br><br>
   <label for="config_lock_until">Configuration locked until:</label>
-  <input type="datetime-local" id="config_lock_until" name="config_lock_until" value=""> <br>
+  <input type="datetime-local" id="config_lock_until" name="config_lock_until" value=""> 
+    If date is in the past, or unset, all parameters on this tab are reconfigurable.<br>
   <p>
   <label for="member_symbol">Membership sister token:</label>
   <input type="text" id="member_symbol" name="member_symbol" value=""> <br>
