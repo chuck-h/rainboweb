@@ -6,18 +6,31 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ajv/4.11.7/ajv.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script type="text/javascript">
-var testnet_checked;
-var test_contract = "histrdotsuds";
-var mainnet_contract = "rainbowproto";
+var networklist = [{name: "Telos mainnet", contract: "rainbowproto",
+                    endpoints: ["https://mainnet.telos.net/"] },
+                   {name: "Telos testnet", contract: "histrdotsuds",
+                    endpoints: ["https://testnet.telos.caleos.io/"] },
+                   {name: "Proton mainnet", contract: "rainbowproto",
+                    endpoints: ["https://proton.protonuk.io/"] }
+                  ];
+var chain_endpoint;
 var active_auth;
 const allowall = "allowallacct";    
 
 const ajv = new Ajv({allErrors: true, verbose: true});
 
-function testnet_status () {
-  testnet_checked = document.getElementById("testmode").checked;
-  document.getElementById("contract_account").value = testnet_checked ? test_contract : mainnet_contract;
+function setup_networks() {
+  $('#networks').empty();
+  for(n in networklist) {
+    $("<option/>").html(networklist[n].name).appendTo("#networks");
+  }
 }
+function update_network() {
+  const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+  document.getElementById("contract_account").value = selected_net.contract;
+  chain_endpoint = selected_net.endpoints[0]; // todo: failover on dead endpoint
+}
+
 function offsetDateHTML(isoDate) {
   let htmlDate = new Date(isoDate);
   htmlDate.setMinutes(htmlDate.getMinutes() - htmlDate.getTimezoneOffset());
@@ -150,8 +163,6 @@ function setupPermissionsTab() {
 }
 
 function updatePermissions() {
-  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
-                                         : "https://telos.caleos.io/";
   const url = chain_endpoint + "v1/chain/get_account";
   const data ={ account_name: document.getElementById("staking_accts").value,
                 json: "true" };
@@ -215,8 +226,6 @@ function setupDisplayTab() {
 
 var validate;
 function getSchema() {
-  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
-                                         : "https://telos.caleos.io/";
   const url = chain_endpoint + "v1/chain/get_table_rows";
   const data ={ code: "tmastr.seeds",
                 table: "schema",
@@ -402,7 +411,12 @@ function updateDisplayJson() {
 
 function esrGenUrl() {
   const esr_gen_base = "https://cc42.xyz";
-  return esr_gen_base + (testnet_checked ? '/qrt' : '/qr');
+  const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+  const suffix = selected_net.name === "Telos mainnet" ? '/qr' :
+                 selected_net.name === "Telos testnet" ? '/qrt' :
+                 selected_net.name === "Proton mainnet" ? '/qrp' :
+                 console.log("unknown net");
+  return esr_gen_base + suffix;
 }
 function makeQR(transaction) {
     $.ajax({
@@ -436,8 +450,6 @@ function emptyTokenDatalist(x,s,e) {
   $("#tokens").empty();
 }
 function getRows(table, scope, action, erroraction=null) {
-  const chain_endpoint = testnet_checked ? "https://testnet.telos.caleos.io/"
-                                         : "https://telos.caleos.io/";
   const url = chain_endpoint + "v1/chain/get_table_rows";
   const data ={ code: document.getElementById("contract_account").value,
                 table: table,
@@ -463,21 +475,20 @@ function getRows(table, scope, action, erroraction=null) {
 }
 
 $(document).ready(function () {
-  testnet_status();
+  setup_networks();
+  update_network();
   getRows("symbols", document.getElementById("contract_account").value,
           setTokenDatalist, emptyTokenDatalist);
-  $('#testmode').click(function(){
-    testnet_status();
+  $('#networks').click(function(){
+    update_network();
     getRows("symbols", document.getElementById("contract_account").value,
             setTokenDatalist, emptyTokenDatalist);
     openTab(null, null);
   });
   $('#contract_account').change(function(){
-    if( testnet_checked ) {
-      test_contract = document.getElementById("contract_account").value;
-    } else {
-      mainnet_contract = document.getElementById("contract_account").value;
-    }
+    const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+    selected_net.contract = document.getElementById("contract_account").value;
+    console.log(networklist);
     openTab(null, null);
     getRows("symbols", document.getElementById("contract_account").value,
             setTokenDatalist, emptyTokenDatalist);
@@ -652,7 +663,8 @@ $(document).ready(function () {
     if(document.getElementById("token_symbol").value != "") {
       window.open(
         `https://eosauthority.com/tokens/${document.getElementById("contract_account").value}/`+
-        `${document.getElementById("token_symbol").value}?network=telos`,
+        `${document.getElementById("token_symbol").value}`+
+        `?network=telos`, // TODO: make this work for all networks
         '_blank'
       );
     }
@@ -890,7 +902,8 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
 . This website repository <a href="https://github.com/chuck-h/rainboweb"> here</a>.
 <div style="background-color:Aquamarine;">
   <p>
-  <label for="testmode">Use Testnet:</label> <input type="checkbox" id="testmode" >
+  <label for="networks">Network:</label><select name="networks" id="networks"> </select>
+  <datalist id="networks"></datalist>
   </p>
   <datalist id="tokens"></datalist>
   <p>
