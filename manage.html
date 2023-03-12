@@ -7,11 +7,11 @@
 
 <script type="text/javascript">
 var networklist = [{name: "Telos mainnet", contract: "rainbowproto",
-                    endpoints: ["https://mainnet.telos.net/"] },
+                    endpoints: ["https://telos.caleos.io/", "https://mainnet.telos.net/"] },
                    {name: "Telos testnet", contract: "histrdotsuds",
                     endpoints: ["https://testnet.telos.caleos.io/"] },
                    {name: "Proton mainnet", contract: "rainbowproto",
-                    endpoints: ["https://proton.protonuk.io/"] }
+                    endpoints: ["http://proton.eosusa.io/", "https://proton.protonuk.io/"] }
                   ];
 var chain_endpoint;
 var active_auth;
@@ -29,6 +29,8 @@ function update_network() {
   const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
   document.getElementById("contract_account").value = selected_net.contract;
   chain_endpoint = selected_net.endpoints[0]; // todo: failover on dead endpoint
+  document.getElementById("token_symbol").value = '';
+  document.getElementById("issuer_account").value = '';
 }
 
 function offsetDateHTML(isoDate) {
@@ -412,13 +414,10 @@ function updateDisplayJson() {
 function esrGenUrl() {
   const esr_gen_base = "https://cc42.xyz";
   const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
-  const suffix = selected_net.name === "Telos mainnet" ? '/qr' :
-                 selected_net.name === "Telos testnet" ? '/qrt' :
-                 selected_net.name === "Proton mainnet" ? '/qrp' :
-                 console.log("unknown net");
-  return esr_gen_base + suffix;
+  return esr_gen_base + '/qr';
 }
 function makeQR(transaction) {
+    transaction.endpoint = chain_endpoint.slice(0, -1); // trim terminal '/'
     $.ajax({
       type: "POST",
       url: esrGenUrl(),
