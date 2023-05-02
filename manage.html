@@ -573,7 +573,7 @@ function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
     const propose_action = {
       account: "eosio.msig", name: "propose",
       data: {
-        proposer: account,
+        proposer: "............1",
         proposal_name: genProposalName(),
         requested: signers,
         trx: {...trx_hdr, actions: serialized_transaction}
