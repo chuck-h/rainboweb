@@ -501,7 +501,7 @@ function clearQR() {
 }
 
 function genProposalName() {
-    var name = "rainbowp";
+    var name = document.getElementById("contract_account").value.slice(0,6);
     for (let i=6; i<10; i++) {
       digit =  Math.floor(Math.random()*4.99 + 1).toString();
       name += digit;
