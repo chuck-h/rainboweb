@@ -122,6 +122,66 @@ function setupCreateTab() {
     },
     function(x,s,e) { } );
 }
+function create_trx() {
+  let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
+                       document.getElementById("withdraw_mgr").value;
+  let withdraw_to = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
+                    document.getElementById("withdraw_to").value;
+  let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
+                   document.getElementById("freeze_mgr").value;
+  const redeem_date_input = document.getElementById("redeem_lock_until").value;
+  const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
+  const config_date_input = document.getElementById("config_lock_until").value;
+  const config_date = new Date(config_date_input=="" ? Date.now() : config_date_input);
+  let membership_symbol = document.getElementById("member_symbol").value;
+  let broker_symbol = document.getElementById("broker_symbol").value;
+  let cred_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
+                          document.getElementById("cred_lim").value;
+  let pos_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
+                         document.getElementById("max_lim").value;
+  let actions=[];
+  actions.push({
+    account: document.getElementById("contract_account").value, name: "create",
+    data: {
+      issuer: document.getElementById("issuer_account").value,
+      maximum_supply: (document.getElementById("max_supply").value + " " +
+                       document.getElementById("token_symbol").value),
+      withdrawal_mgr: withdrawal_mgr,
+      withdraw_to: withdraw_to,
+      freeze_mgr: freeze_mgr,
+      redeem_locked_until: redeem_date.toISOString(),
+      config_locked_until: config_date.toISOString(),
+      membership_symbol: document.getElementById("member_symbol").value,
+      broker_symbol: document.getElementById("broker_symbol").value,
+      cred_limit_symbol: document.getElementById("cred_lim").value,
+      pos_limit_symbol: document.getElementById("max_lim").value,
+    },
+    authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
+  })
+
+  transaction =  {
+    actions: actions
+  }
+  return transaction;
+}  
+
+function approve_trx() {
+  const actor = document.getElementById("contract_account").value;
+  let actions=[];
+  actions.push({
+    account: actor, name: "approve",
+    data: {
+      symbolcode: document.getElementById("token_symbol").value,
+      reject_and_clear: document.getElementById("reject_checked").checked,
+    },
+    authorization: [{actor: actor, permission: "active"}]
+  })
+
+  transaction =  {
+    actions: actions
+  }
+  return transaction;
+}
 
 function setupApproveTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
@@ -411,8 +471,9 @@ function updateDisplayJson() {
   }
 }
 
+const esr_gen_base = "https://cc42.xyz";
+
 function esrGenUrl() {
-  const esr_gen_base = "https://cc42.xyz";
   const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
   return esr_gen_base + '/qr';
 }
@@ -434,9 +495,115 @@ function makeQR(transaction) {
     });
 }
 function clearQR() {
+    note.innerHTML = '';
     qrcode.innerHTML = ``;
     esr.innerHTML = ``;
 }
+
+function genProposalName() {
+    var name = "rainbowp";
+    for (let i=6; i<10; i++) {
+      digit =  Math.floor(Math.random()*4.99 + 1).toString();
+      name += digit;
+    }
+    return name;
+}
+function makeMsigProposeQR_step1(transaction, account, permission) {
+    // get account/permission signatories from chain
+    const url = chain_endpoint + "v1/chain/get_account";
+    const data ={ account_name: account};
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        let signers = data.permissions.filter( x => x.perm_name==permission )[0].
+          required_auth.accounts?.map( a => a.permission ).
+          filter( p => p.permission !== "eosio.code");
+        if( !Array.isArray(signers) || signers.length == 0) {
+          note.innerHTML = `${account} is not a multisig account`;
+        } else {
+          makeMsigProposeQR_step2(transaction, account, permission, signers);
+        }
+      },
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+}
+    
+function makeMsigProposeQR_step2(transaction, account, permission, signers) {
+    // serialize inner transaction
+    $.ajax({
+      type: "POST",
+      url: esr_gen_base + '/tx',
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        makeMsigProposeQR_step3(data, account, signers);
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
+    // build msig propose with all signatories
+    const duration_days = 3;
+    var expiration = new Date();
+    expiration.setDate(expiration.getDate() + duration_days);
+    const trx_hdr = {
+      expiration: expiration.toISOString().split('.')[0],
+      ref_block_num: 0,
+      ref_block_prefix: 0,
+      max_net_usage_words: 0,
+      max_cpu_usage_ms: 0,
+      delay_sec: 0,
+      context_free_actions: [],
+      transaction_extensions: []
+    }
+
+    const propose_action = {
+      account: "eosio.msig", name: "propose",
+      data: {
+        proposer: account,
+        proposal_name: genProposalName(),
+        requested: signers,
+        trx: {...trx_hdr, actions: serialized_transaction}
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    }
+
+    const proposal =  {
+      actions: [ propose_action ]
+    }
+    proposal.endpoint = chain_endpoint.slice(0, -1); // trim terminal '/'
+    $.ajax({
+      type: "POST",
+      url: esrGenUrl(),
+      data: JSON.stringify(proposal),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        const prop = proposal.actions[0].data.proposal_name;
+        note.innerHTML = 
+          `msig proposal <a href=https://explorer.telos.net/proposal/${prop}> ${prop} </a>`;
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+
 function setTokenDatalist(data, status, jqXHR) {
   $("#tokens").empty();
   data["rows"].sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
@@ -493,68 +660,26 @@ $(document).ready(function () {
             setTokenDatalist, emptyTokenDatalist);
   });
   $('#create_QR').click(function(){
-    let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
-                         document.getElementById("withdraw_mgr").value;
-    let withdraw_to = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
-                      document.getElementById("withdraw_to").value;
-    let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
-                     document.getElementById("freeze_mgr").value;
-    const redeem_date_input = document.getElementById("redeem_lock_until").value;
-    const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
-    const config_date_input = document.getElementById("config_lock_until").value;
-    const config_date = new Date(config_date_input=="" ? Date.now() : config_date_input);
-    let membership_symbol = document.getElementById("member_symbol").value;
-    let broker_symbol = document.getElementById("broker_symbol").value;
-    let cred_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
-                            document.getElementById("cred_lim").value;
-    let pos_limit_symbol = !document.getElementById("MC_enabled").checked ? "" :
-                           document.getElementById("max_lim").value;
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "create",
-      data: {
-        issuer: document.getElementById("issuer_account").value,
-        maximum_supply: (document.getElementById("max_supply").value + " " +
-                         document.getElementById("token_symbol").value),
-        withdrawal_mgr: withdrawal_mgr,
-        withdraw_to: withdraw_to,
-        freeze_mgr: freeze_mgr,
-        redeem_locked_until: redeem_date.toISOString(),
-        config_locked_until: config_date.toISOString(),
-        membership_symbol: document.getElementById("member_symbol").value,
-        broker_symbol: document.getElementById("broker_symbol").value,
-        cred_limit_symbol: document.getElementById("cred_lim").value,
-        pos_limit_symbol: document.getElementById("max_lim").value,
-
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = create_trx();
     console.log(transaction);
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#create_msig_propose_QR').click(function(){
+    const transaction = create_trx(); // call common code for 'create' transaction
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+
   $('#approve_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "approve",
-      data: {
-        symbolcode: document.getElementById("token_symbol").value,
-        reject_and_clear: document.getElementById("reject_checked").checked,
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    console.log(transaction);
+    const transaction = approve_trx();
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+
+  $('#approve_msig_propose_QR').click(function(){
+    const transaction = approve_trx(); // call common code for 'approve' transaction
+    makeMsigProposeQR_step1(transaction, document.getElementById("contract_account").value, "active");
+  });
+
   $('#setstake_QR').click(function(){
     let actions=[];
     actions.push({
@@ -978,6 +1103,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="create_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="create_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
@@ -995,6 +1121,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="approve_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="approve_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
@@ -1185,6 +1312,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   </div>
 </div>
 
+<div id=note> </div>
 <div id=qrcode> </div>
 <div id=esr> </div>
 
