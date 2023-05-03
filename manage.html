@@ -195,6 +195,50 @@ function setupApproveTab() {
     function(x,s,e) { } );
 }
 
+function setbacking_trx() {
+    const issuer = document.getElementById("issuer_account").value;
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setbacking",
+      data: {
+        token_bucket: (document.getElementById("bucket").value + " " +
+                         document.getElementById("token_symbol").value),
+        backs_per_bucket: (document.getElementById("staked").value + " " +
+                         document.getElementById("stake_symbol").value),
+        backing_token_contract: document.getElementById("stake_contract").value,
+        escrow: document.getElementById("stake_to").value,
+        proportional: document.getElementById("proportional").checked,
+        reserve_fraction: parseInt(document.getElementById("fraction").value),
+        memo: document.getElementById("stake_memo").value,
+      },
+      authorization: [{actor: issuer, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function deletebacking_trx() {
+    const issuer = document.getElementById("issuer_account").value;
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "deletebacking",
+      data: {
+        backing_index: document.getElementById("stakes").value.split(" ")[0],
+        symbolcode: document.getElementById("token_symbol").value,
+        memo: "",
+      },
+      authorization: [{actor: issuer, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
 function setupAddBackingTab() {  
   getRows("stat", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
@@ -208,6 +252,43 @@ function setupAddBackingTab() {
       }
     },
     function(x,s,e) { } );
+}
+
+function permission_trx() {
+    const backing_acct = document.getElementById("staking_accts").value;
+    let actions=[];
+    var auth_object = JSON.parse(JSON.stringify(active_auth.required_auth));
+    auth_object.parent = active_auth.parent;
+    auth_object.perm_name = active_auth.perm_name;
+    if( document.getElementById("permission_action").textContent.includes("add") ) {
+      auth_object.accounts.push( {
+        permission: { actor: document.getElementById("contract_account").value, 
+                       permission: "eosio.code" },
+        weight: 1
+      });
+      auth_object.accounts.sort(
+         (a, b) =>
+             a.permission.actor.localeCompare(b.permission.actor));
+    } else {
+      code_permission = active_auth.required_auth.accounts.findIndex(function(acct){
+        return acct.permission.actor==document.getElementById("contract_account").value
+           && acct.permission.permission=="eosio.code";}) ;
+      auth_object.accounts.splice(code_permission,1);
+    }
+    actions.push({
+      account: "eosio", name: "updateauth",
+      data: {
+        account: backing_acct,
+        permission: "active",
+        parent: "owner",
+        auth: auth_object
+      },
+      authorization: [{actor: backing_acct, permission: "active"}]
+    })
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
 }
 
 function setupPermissionsTab() {
@@ -259,6 +340,23 @@ function showAccountPermission(data) {
     permission_status.innerHTML = "permission is not present;";
     permission_action.innerHTML = "add code permission";
   }
+}
+
+function display_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setdisplay",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        json_meta: document.getElementById("display_json").value
+      },
+      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
 }
 
 function setupDisplayTab() {
@@ -314,6 +412,24 @@ function getSchema() {
     });
 }
 
+function issue_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "issue",
+      data: {
+        quantity: (document.getElementById("issue_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        memo: document.getElementById("issue_memo").value
+      },
+      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
 function setupIssueTab() {  
   getRows("stat", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
@@ -329,6 +445,26 @@ function setupIssueTab() {
     function(x,s,e) { } );
 
   document.getElementById("issue_memo").value = "";
+}
+
+function redeem_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "retire",
+      data: {
+        owner: document.getElementById("redeem_from").value,
+        quantity: (document.getElementById("redeem_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        do_redeem: true,
+        memo: document.getElementById("redeem_memo").value
+      },
+      authorization: [{actor: document.getElementById("redeem_from").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
 }
 
 function setupRedeemTab() {  
@@ -349,6 +485,23 @@ function setupRedeemTab() {
   document.getElementById("redeem_memo").value = "";
 }
 
+function freeze_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "freeze",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        freeze: document.getElementById("freeze_checked").checked,
+        memo: document.getElementById("freeze_memo").value
+      },
+      authorization: [{actor: document.getElementById("freeze_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
 function setupFreezeTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
@@ -356,7 +509,16 @@ function setupFreezeTab() {
       if( data.rows.length != 0 && data.rows[0].transfers_frozen) {
         visibility = "visible";
       }
+      if( data.rows.length != 0 ) {
+        document.getElementById("freeze_account").value = data.rows[0].freeze_mgr;
+        if (data.rows[0].freeze_mgr !== "eosio.null") {
+          mgr_visibility = "visible";
+        } else {
+          mgr_visibility = "hidden";
+        }
+      }
     document.getElementById("frozen_in_table").style.visibility = visibility;
+    document.getElementById("freezer").style.visibility = mgr_visibility;
     },
     function(x,s,e) { } );
 }
@@ -368,7 +530,28 @@ function setupRamTab() {
   document.getElementById("buyramfor").innerHTML = "for "+document.getElementById("issuer_account").value;
 }
 
-function setupSendTab() {  
+var withdraw;
+function send_trx(actor) {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "transfer",
+      data: {
+        quantity: (document.getElementById("send_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        from: document.getElementById("send_from").value,
+        to: document.getElementById("send_to").value,
+        memo: document.getElementById("send_memo").value
+      },
+      authorization: [{actor: actor, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+function setupSendTab() {
+  withdraw = "eosio.null";  
   getRows("stat", document.getElementById("token_symbol").value, 
     function(data, status, jqXHR){
       if( data.rows.length != 0 ) {
@@ -377,7 +560,12 @@ function setupSendTab() {
           document.getElementById("send_qty").value = "1";
         } else {
           document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
-        } 
+        }
+        getRows("configs", document.getElementById("token_symbol").value, 
+          function(data, status, jqXHR){
+            withdraw = data.rows[0].withdrawal_mgr;
+          },
+          function(x,s,e) { } );
       }
     },
     function(x,s,e) { } );
@@ -523,7 +711,7 @@ function makeMsigProposeQR_step1(transaction, account, permission) {
           required_auth.accounts?.map( a => a.permission ).
           filter( p => p.permission !== "eosio.code");
         if( !Array.isArray(signers) || signers.length == 0) {
-          note.innerHTML = `${account} is not a multisig account`;
+          note.innerHTML = `${account} has no delegated msig signer(s)`;
         } else {
           makeMsigProposeQR_step2(transaction, account, permission, signers);
         }
@@ -680,102 +868,49 @@ $(document).ready(function () {
     makeMsigProposeQR_step1(transaction, document.getElementById("contract_account").value, "active");
   });
 
-  $('#setstake_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "setbacking",
-      data: {
-        token_bucket: (document.getElementById("bucket").value + " " +
-                         document.getElementById("token_symbol").value),
-        backs_per_bucket: (document.getElementById("staked").value + " " +
-                         document.getElementById("stake_symbol").value),
-        backing_token_contract: document.getElementById("stake_contract").value,
-        escrow: document.getElementById("stake_to").value,
-        proportional: document.getElementById("proportional").checked,
-        reserve_fraction: parseInt(document.getElementById("fraction").value),
-        memo: document.getElementById("stake_memo").value,
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+  $('#setbacking_QR').click(function(){
+    const transaction = setbacking_trx();
     console.log(transaction);
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  $('#deletestake_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "deletebacking",
-      data: {
-        backing_index: document.getElementById("stakes").value.split(" ")[0],
-        symbolcode: document.getElementById("token_symbol").value,
-        memo: "",
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
+  
+  $('#setbacking_msig_propose_QR').click(function(){
+    const transaction = setbacking_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
 
-    transaction =  {
-      actions: actions
-    }
+  $('#deletebacking_QR').click(function(){
+    const transaction = deletebacking_trx();
     console.log(transaction);
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#deletebacking_msig_propose_QR').click(function(){
+    const transaction = deletebacking_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+
   $('#permission_QR').click(function(){
-    let actions=[];
-    var auth_object = active_auth.required_auth;
-    auth_object.parent = active_auth.parent;
-    auth_object.perm_name = active_auth.perm_name;
-    if( document.getElementById("permission_action").textContent.includes("add") ) {
-      auth_object.accounts.push( {
-        permission: { actor: document.getElementById("contract_account").value, 
-                       permission: "eosio.code" },
-        weight: 1
-      });
-    } else {
-      code_permission = active_auth.required_auth.accounts.findIndex(function(acct){
-        return acct.permission.actor==document.getElementById("contract_account").value
-           && acct.permission.permission=="eosio.code";}) ;
-      auth_object.accounts.splice(code_permission,1);
-    }
-    actions.push({
-      account: "eosio", name: "updateauth",
-      data: {
-        account: document.getElementById("staking_accts").value,
-        permission: "active",
-        parent: "owner",
-        auth: auth_object
-      },
-      authorization: [{actor: "............1", permission: "owner"}]
-    })
-    transaction =  {
-      actions: actions
-    }
+    const transaction = permission_trx();
     console.log(transaction);
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#permission_msig_propose_QR').click(function(){
+    const transaction = permission_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("staking_accts").value, "active");
+  });
+
   $('#display_QR').click(function(){
     updateDisplayJson();
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "setdisplay",
-      data: {
-        symbolcode: document.getElementById("token_symbol").value,
-        json_meta: document.getElementById("display_json").value
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = display_trx();
     console.log(transaction);
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#display_msig_propose_QR').click(function(){
+    updateDisplayJson();
+    const transaction = display_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
   });
   $('#weblink_button').click(function(){
     window.open(
@@ -808,64 +943,32 @@ $(document).ready(function () {
     }
   });
   $('#issue_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "issue",
-      data: {
-        quantity: (document.getElementById("issue_qty").value + " " +
-                   document.getElementById("token_symbol").value),
-        memo: document.getElementById("issue_memo").value
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = issue_trx();
     console.log(transaction);
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#issue_msig_propose_QR').click(function(){
+    const transaction = issue_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
   });
   $('#redeem_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "retire",
-      data: {
-        owner: document.getElementById("redeem_from").value,
-        quantity: (document.getElementById("redeem_qty").value + " " +
-                   document.getElementById("token_symbol").value),
-        do_redeem: true,
-        memo: document.getElementById("redeem_memo").value
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = redeem_trx();
     console.log(transaction);
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#redeem_msig_propose_QR').click(function(){
+    const transaction = redeem_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("redeem_from").value, "active");
   });
   $('#freeze_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "freeze",
-      data: {
-        symbolcode: document.getElementById("token_symbol").value,
-        freeze: document.getElementById("freeze_checked").checked,
-        memo: document.getElementById("freeze_memo").value
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = freeze_trx();
     console.log(transaction);
-    console.log(JSON.stringify(transaction));
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#freeze_msig_propose_QR').click(function(){
+    const transaction = freeze_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("freeze_account").value, "active");
   });
   $('#ram_QR').click(function(){
     let actions=[];
@@ -900,26 +1003,21 @@ $(document).ready(function () {
     // TBD: check blockchain for transaction posted, or timeout?
   });
   $('#send_QR').click(function(){
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "transfer",
-      data: {
-        quantity: (document.getElementById("send_qty").value + " " +
-                   document.getElementById("token_symbol").value),
-        from: document.getElementById("send_from").value,
-        to: document.getElementById("send_to").value,
-        memo: document.getElementById("send_memo").value
-      },
-      authorization: [{actor: "............1", permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
+    const transaction = send_trx("............1");
     console.log(transaction);
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#send_msig_propose_QR').click(function(){
+    var actor; 
+    if ( document.getElementById("send_to").value == withdraw ) {
+      actor = withdraw;
+    } else {
+      actor = document.getElementById("send_from").value;
+    }
+    const transaction = send_trx(actor);
+    makeMsigProposeQR_step1(transaction, actor, "active");
+  });
+  
   $('#stakes').change(function(){
     updateReviewStake();
     clearQR();
@@ -1146,8 +1244,9 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <input type="text" id="fraction" name="fraction" value="100"> <br>
   <br>
   <div id="button-wrapper">
-    <input type="button" id="setstake_QR" value="Create QR" class="button">
+    <input type="button" id="setbacking_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="setbacking_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
@@ -1175,8 +1274,9 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
     <input type="text" id="r_fraction" name="r_fraction" value=""> <br>
     <br>
     <div id="button-wrapper">
-      <input type="button" id="deletestake_QR" value="Delete Stake" class="button">
+      <input type="button" id="deletebacking_QR" value="Delete Stake" class="button">
       <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+      <input type="button" id="deletebacking_msig_propose_QR" value="Propose Msig QR" class="button">
     </div>
 
   </div>
@@ -1195,7 +1295,8 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
     <div id="button-wrapper">
       <input type="button" id="permission_QR" value="Create QR" class="button">
       <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    </div>
+      <input type="button" id="permission_msig_propose_QR" value="Propose Msig QR" class="button">
+          </div>
   </div>
 </div>
 
@@ -1226,6 +1327,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="display_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="display_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
@@ -1238,6 +1340,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="issue_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="issue_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
@@ -1253,12 +1356,17 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
     <div id="button-wrapper">
     <input type="button" id="redeem_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="redeem_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
 <div id="Freeze" class="tabcontent" style="background-color:Beige;">
   <h3>Freeze token transfers</h3>
   <p>
+  <div id="freezer" style="visibility:hidden;">
+    <label for="freeze_account">Freeze manager:</label>
+    <input type="text" id="freeze_account" name="freeze_account" value=""> <br>
+  </div>
   <div id="frozen_in_table" style="visibility:hidden;">This token is already frozen on-chain.</div>
   <label for="freeze_checked">Freeze:</label>
   <input type="radio" id="freeze_checked" name="freezing" value="frozen" checked>
@@ -1271,6 +1379,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="freeze_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="freeze_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
@@ -1309,6 +1418,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <div id="button-wrapper">
     <input type="button" id="send_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="send_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
