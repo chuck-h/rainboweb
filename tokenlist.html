@@ -132,7 +132,7 @@ function setupRamTab() {
 
 function updateSubmit() {
   document.getElementById("loadbutton").disabled =
-    !( ["rainbowproto","rainbo.seeds","hypha.hypha","dao.hypha"].includes(document.getElementById("contract").value) );
+    !( ["rainbowproto","rainbo.seeds","hypha.hypha","dao.hypha","tokensmaster"].includes(document.getElementById("contract").value) );
 }
 
 function updateDelete() {
@@ -199,7 +199,7 @@ function updateDelete() {
 
 function loadFromContract() {
   let c = document.getElementById("contract").value;
-  if ( c == "rainbowproto" || c == "rainbo.seeds") {
+  if ( c == "rainbowproto" || c == "rainbo.seeds" || c == "tokensmaster") {
     getRows(c, "displays", document.getElementById("symbolcode").value,
           function(data, status, jqXHR) {
             if( data.rows.length != 0 ) {
