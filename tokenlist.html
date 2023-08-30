@@ -184,7 +184,7 @@ function updateDelete() {
       success: 
           function(data, status, jqXHR) {
             if( data.rows.length != 0 ) {
-              t += uc.usecase;
+              t += (uc.usecase + "\n");
             }
           },
       async: false,
