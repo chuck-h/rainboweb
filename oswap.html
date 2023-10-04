@@ -96,8 +96,8 @@ function setupConfigureTab() {
 function config_trx() {
   let actions=[];
   let authorization = configured ? 
-       {actor: document.getElementById("contract_mgr").value, permission: "active"} :
-       {actor: document.getElementById("contract_account").value, permission: "owner"}
+       [ {actor: document.getElementById("contract_mgr").value, permission: "active"} ] :
+       [ {actor: document.getElementById("contract_account").value, permission: "owner"} ]
   actions.push({
     account: document.getElementById("contract_account").value, name: "init",
     data: {
