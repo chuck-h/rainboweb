@@ -5,7 +5,7 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
 <script type="text/javascript">
-var networklist = [{name: "Telos mainnet", contract: "oswapper",
+var networklist = [{name: "Telos mainnet", contract: "oswapper1111",
                     endpoints: ["https://telos.caleos.io/", "https://mainnet.telos.net/"] },
                    {name: "Local testnet", contract: "oswapper",
                     endpoints: ["http://127.0.0.1:8888/"] }
@@ -105,7 +105,7 @@ function config_trx() {
       nonce_life_msec: document.getElementById("life_msec").value,
       chain: "Telos",
     },
-    authorization: [{actor: document.getElementById("contract_account").value, permission: "active"}]
+    authorization: authorization;
   })
 
   transaction =  {
