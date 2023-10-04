@@ -12,6 +12,7 @@ var networklist = [{name: "Telos mainnet", contract: "oswapper",
                   ];
 var chain_endpoint;
 var active_auth;
+var configured;
 
 function setup_networks() {
   $('#networks').empty();
@@ -84,7 +85,8 @@ function openTab(evt, tabName) {
 function setupConfigureTab() {
   getRows("configs", document.getElementById("contract_account").value, 
     function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
+      configured = data.rows.length != 0;
+      if( configured ) {
         document.getElementById("contract_mgr").value = data.rows[0].manager;
         document.getElementById("life_msec").value = data.rows[0].nonce_life_msec;
       }
@@ -93,6 +95,9 @@ function setupConfigureTab() {
 }
 function config_trx() {
   let actions=[];
+  let authorization = configured ? 
+       {actor: document.getElementById("contract_mgr").value, permission: "active"} :
+       {actor: document.getElementById("contract_account").value, permission: "owner"}
   actions.push({
     account: document.getElementById("contract_account").value, name: "init",
     data: {
