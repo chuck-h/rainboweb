@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+var networklist = [{name: "Telos mainnet", contract: "oswapper",
+                    endpoints: ["https://telos.caleos.io/", "https://mainnet.telos.net/"] },
+                   {name: "Local testnet", contract: "oswapper",
+                    endpoints: ["http://127.0.0.1:8888/"] }
+                  ];
+var chain_endpoint;
+var active_auth;
+
+function setup_networks() {
+  $('#networks').empty();
+  for(n in networklist) {
+    $("<option/>").html(networklist[n].name).appendTo("#networks");
+  }
+}
+function update_network() {
+  const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+  document.getElementById("contract_account").value = selected_net.contract;
+  chain_endpoint = selected_net.endpoints[0]; // todo: failover on dead endpoint
+}
+
+function offsetDateHTML(isoDate) {
+  let htmlDate = new Date(isoDate);
+  htmlDate.setMinutes(htmlDate.getMinutes() - htmlDate.getTimezoneOffset());
+  return htmlDate.toLocaleString("sv-SE", {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    second: "2-digit"}).replace(" ", "T");
+}
+function openTab(evt, tabName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+    tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+    tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  if( evt != null) {
+  document.getElementById(tabName).style.display = "block";
+  evt.currentTarget.className += " active";
+  }
+  clearQR();
+  if( tabName=="Configure" ) {
+    setupConfigureTab();
+  }
+  if( tabName=="Approve" ) {
+    setupApproveTab();
+  }
+  if( tabName=="AddBacking" ) {
+    setupAddBackingTab();
+  }
+  if( tabName=="ReviewBacking" ) {
+    setupReviewStakesTab();
+  }
+  if( tabName=="BackingPermissions" ) {
+    setupPermissionsTab();
+  }
+  if( tabName=="Display" ) {
+    setupDisplayTab();
+  }
+  if( tabName=="Issue" ) {
+    setupIssueTab();
+  }
+  if( tabName=="Redeem" ) {
+    setupRedeemTab();
+  }
+  if( tabName=="Freeze" ) {
+    setupFreezeTab();
+  }
+  if( tabName=="TopUpRam" ) {
+    setupRamTab();
+  }
+  if( tabName=="Send" ) {
+    setupSendTab();
+  }
+}
+function setupConfigureTab() {
+  getRows("configs", document.getElementById("contract_account").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        document.getElementById("contract_mgr").value = data.rows[0].manager;
+        document.getElementById("life_msec").value = data.rows[0].nonce_life_msec;
+      }
+    },
+    function(x,s,e) { } );
+}
+function config_trx() {
+  let actions=[];
+  actions.push({
+    account: document.getElementById("contract_account").value, name: "init",
+    data: {
+      manager: document.getElementById("contract_mgr").value,
+      nonce_life_msec: document.getElementById("life_msec").value,
+      chain: "Telos",
+    },
+    authorization: [{actor: document.getElementById("contract_account").value, permission: "active"}]
+  })
+
+  transaction =  {
+    actions: actions
+  }
+  return transaction;
+}  
+
+function approve_trx() {
+  const actor = document.getElementById("contract_account").value;
+  let actions=[];
+  actions.push({
+    account: actor, name: "approve",
+    data: {
+      symbolcode: document.getElementById("token_symbol").value,
+      reject_and_clear: document.getElementById("reject_checked").checked,
+    },
+    authorization: [{actor: actor, permission: "active"}]
+  })
+
+  transaction =  {
+    actions: actions
+  }
+  return transaction;
+}
+
+function setupApproveTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      let visibility = "hidden";
+      if( data.rows.length != 0 && data.rows[0].approved) {
+        visibility = "visible";
+      }
+    document.getElementById("approved_in_table").style.visibility = visibility;
+    },
+    function(x,s,e) { } );
+}
+
+function setbacking_trx() {
+    const issuer = document.getElementById("issuer_account").value;
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setbacking",
+      data: {
+        token_bucket: (document.getElementById("bucket").value + " " +
+                         document.getElementById("token_symbol").value),
+        backs_per_bucket: (document.getElementById("staked").value + " " +
+                         document.getElementById("stake_symbol").value),
+        backing_token_contract: document.getElementById("stake_contract").value,
+        escrow: document.getElementById("stake_to").value,
+        proportional: document.getElementById("proportional").checked,
+        reserve_fraction: parseInt(document.getElementById("fraction").value),
+        memo: document.getElementById("stake_memo").value,
+      },
+      authorization: [{actor: issuer, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function deletebacking_trx() {
+    const issuer = document.getElementById("issuer_account").value;
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "deletebacking",
+      data: {
+        backing_index: document.getElementById("stakes").value.split(" ")[0],
+        symbolcode: document.getElementById("token_symbol").value,
+        memo: "",
+      },
+      authorization: [{actor: issuer, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupAddBackingTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("bucket").value = "1";
+        } else {
+          document.getElementById("bucket").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+}
+
+function permission_trx() {
+    const backing_acct = document.getElementById("staking_accts").value;
+    let actions=[];
+    var auth_object = JSON.parse(JSON.stringify(active_auth.required_auth));
+    auth_object.parent = active_auth.parent;
+    auth_object.perm_name = active_auth.perm_name;
+    if( document.getElementById("permission_action").textContent.includes("add") ) {
+      auth_object.accounts.push( {
+        permission: { actor: document.getElementById("contract_account").value, 
+                       permission: "eosio.code" },
+        weight: 1
+      });
+      auth_object.accounts.sort(
+         (a, b) =>
+             a.permission.actor.localeCompare(b.permission.actor));
+    } else {
+      code_permission = active_auth.required_auth.accounts.findIndex(function(acct){
+        return acct.permission.actor==document.getElementById("contract_account").value
+           && acct.permission.permission=="eosio.code";}) ;
+      auth_object.accounts.splice(code_permission,1);
+    }
+    actions.push({
+      account: "eosio", name: "updateauth",
+      data: {
+        account: backing_acct,
+        permission: "active",
+        parent: "owner",
+        auth: auth_object
+      },
+      authorization: [{actor: backing_acct, permission: "active"}]
+    })
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupPermissionsTab() {
+    getRows("backings", document.getElementById("token_symbol").value,
+            function(data, status, jqXHR) {
+              $("#staking_accts").empty();
+              const accts = new Set();
+              accts.add(document.getElementById("issuer_account").value);
+              data.rows.map( function(row) { accts.add(row.escrow); } );
+              accts.forEach(function(acct) {
+                $("<option/>").html(`${acct}`).appendTo("#staking_accts");
+              });
+              updatePermissions();       
+            });
+}
+
+function updatePermissions() {
+  const url = chain_endpoint + "v1/chain/get_account";
+  const data ={ account_name: document.getElementById("staking_accts").value,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        showAccountPermission(data);
+      },
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+// TBD
+}
+function showAccountPermission(data) {
+  active_auth = data.permissions.find(function(row){return row.perm_name=="active";});
+  permission_exists = "undefined" != typeof( active_auth.required_auth.accounts.find(function(acct){
+    return acct.permission.actor==document.getElementById("contract_account").value
+           && acct.permission.permission=="eosio.code";}) );
+  if( permission_exists ) {
+    permission_status.innerHTML = "permission is present;";
+    permission_action.innerHTML = "remove code permission";
+  } else {
+    permission_status.innerHTML = "permission is not present;";
+    permission_action.innerHTML = "add code permission";
+  }
+}
+
+function display_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setdisplay",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        json_meta: document.getElementById("display_json").value
+      },
+      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupDisplayTab() {
+  document.getElementById("edit_display_json").checked = false;
+  document.getElementById("display_json").readOnly = true;
+  getRows("displays", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      let jd;
+      if( data.rows.length != 0 && data.rows[0].json_meta != "") {
+        document.getElementById("display_json").value = data.rows[0].json_meta;
+      } else {
+        document.getElementById("display_json").value =
+         '{"chain":"Telos", "symbol":"'+document.getElementById("token_symbol").value+'",' +
+         '"account":"'+document.getElementById("contract_account").value+'"}';
+      }
+      jd = JSON.parse(document.getElementById("display_json").value);
+      document.getElementById("token_name").value = jd.name;
+      document.getElementById("logo").value = jd.logo;
+      document.getElementById("logo_lg").value = jd.logo_lg;
+      document.getElementById("web_link").value = jd.web_link;
+      document.getElementById("background_img").value = jd.bg_image;
+      document.getElementById("balance_subtitle").value = jd.subtitle;
+    },
+    function(x,s,e) { } );
+  getSchema();
+}
+
+var validate;
+function getSchema() {
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: "tmastr.seeds",
+                table: "schema",
+                scope: "tmastr.seeds",
+                limit: 1,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR){
+        if( data.rows.length != 0 ) {
+          schema = JSON.parse(data.rows[0].schema);
+        }
+      console.log(schema);
+      validate = ajv.compile(schema); 
+      },
+
+      error: function(xhr, status, error) {
+        alert(xhr.responseText);
+      }
+    });
+}
+
+function issue_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "issue",
+      data: {
+        quantity: (document.getElementById("issue_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        memo: document.getElementById("issue_memo").value
+      },
+      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupIssueTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("issue_qty").value = "1";
+        } else {
+          document.getElementById("issue_qty").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+
+  document.getElementById("issue_memo").value = "";
+}
+
+function redeem_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "retire",
+      data: {
+        owner: document.getElementById("redeem_from").value,
+        quantity: (document.getElementById("redeem_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        do_redeem: true,
+        memo: document.getElementById("redeem_memo").value
+      },
+      authorization: [{actor: document.getElementById("redeem_from").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupRedeemTab() {  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("redeem_qty").value = "1";
+        } else {
+          document.getElementById("redeem_qty").value = `1.${qtysplit[1]}`; 
+        } 
+      }
+    },
+    function(x,s,e) { } );
+
+  document.getElementById("redeem_from").value = "";
+  document.getElementById("redeem_memo").value = "";
+}
+
+function freeze_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "freeze",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        freeze: document.getElementById("freeze_checked").checked,
+        memo: document.getElementById("freeze_memo").value
+      },
+      authorization: [{actor: document.getElementById("freeze_account").value, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+function setupFreezeTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      let visibility = "hidden";
+      if( data.rows.length != 0 && data.rows[0].transfers_frozen) {
+        visibility = "visible";
+      }
+      if( data.rows.length != 0 ) {
+        document.getElementById("freeze_account").value = data.rows[0].freeze_mgr;
+        if (data.rows[0].freeze_mgr !== "eosio.null") {
+          mgr_visibility = "visible";
+        } else {
+          mgr_visibility = "hidden";
+        }
+      }
+    document.getElementById("frozen_in_table").style.visibility = visibility;
+    document.getElementById("freezer").style.visibility = mgr_visibility;
+    },
+    function(x,s,e) { } );
+}
+
+function setupRamTab() {
+  document.getElementById("seeds2telos_qty").value = "5.0000";
+  document.getElementById("seeds2telos").checked = true;
+  document.getElementById("buyram").checked = true;
+  document.getElementById("buyramfor").innerHTML = "for "+document.getElementById("issuer_account").value;
+}
+
+var withdraw;
+function send_trx(actor) {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "transfer",
+      data: {
+        quantity: (document.getElementById("send_qty").value + " " +
+                   document.getElementById("token_symbol").value),
+        from: document.getElementById("send_from").value,
+        to: document.getElementById("send_to").value,
+        memo: document.getElementById("send_memo").value
+      },
+      authorization: [{actor: actor, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+function setupSendTab() {
+  withdraw = "eosio.null";  
+  getRows("stat", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        if( qtysplit.length == 1 ) {
+          document.getElementById("send_qty").value = "1";
+        } else {
+          document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
+        }
+        getRows("configs", document.getElementById("token_symbol").value, 
+          function(data, status, jqXHR){
+            withdraw = data.rows[0].withdrawal_mgr;
+          },
+          function(x,s,e) { } );
+      }
+    },
+    function(x,s,e) { } );
+
+  document.getElementById("send_from").value = "";
+  document.getElementById("send_to").value = "";
+  document.getElementById("send_memo").value = "";
+}
+
+function setupReviewStakesTab() {
+    getRows("backings", document.getElementById("token_symbol").value,
+            function(data, status, jqXHR) {
+              if( data.rows.length == 0 ) {
+                document.getElementById("stakeselector").style.display = "none";
+                document.getElementById("nostakes").style.display = "block";
+              } else {
+                $("#stakes").empty();
+                data["rows"].forEach(function(row) {
+                  $("<option/>").html(`${row.index} ${row.backs_per_bucket}`).appendTo("#stakes");
+                });
+                reviewOneStake(data);
+              }        
+            },
+            function(x,s,e) { 
+              document.getElementById("stakeselector").style.display = "none";
+              document.getElementById("nostakes").style.display = "block";
+            } );
+}
+
+function updateReviewStake() {
+  getRows("backings", document.getElementById("token_symbol").value,
+          function(data, status, jqXHR) {
+            reviewOneStake(data);
+          },
+          function(x,s,e) { 
+            document.getElementById("stakeselector").style.display = "none";
+            document.getElementById("nostakes").style.display = "block";
+          });
+}
+
+function reviewOneStake(data) {
+  if( data.rows.length == 0 ) {
+    document.getElementById("stakeselector").style.display = "none";
+    document.getElementById("nostakes").style.display = "block";
+    return;
+  }
+  document.getElementById("stakeselector").style.display = "block";
+  document.getElementById("nostakes").style.display = "none";
+  const selectedStake = document.getElementById("stakes").value;
+  const selectedIndex = selectedStake.split(" ")[0];
+  const selectedRow = data.rows.find(function(row){return row.index==selectedIndex;});
+  document.getElementById("r_bucket").value = selectedRow.token_bucket.split(" ")[0];
+  document.getElementById("r_staked").value = selectedRow.backs_per_bucket.split(" ")[0];
+  document.getElementById("r_stake_symbol").value = selectedRow.backs_per_bucket.split(" ")[1];
+  document.getElementById("r_stake_contract").value = selectedRow.backing_token_contract;
+  document.getElementById("r_stake_to").value = selectedRow.escrow;
+  document.getElementById("r_proportional").checked = selectedRow.proportional;
+  document.getElementById("r_fraction").value = selectedRow.reserve_fraction;
+}
+
+function updateIssuer() {
+  getRows("stat", document.getElementById("token_symbol").value,
+
+          function(data, status, jqXHR) {
+            if( data.rows.length != 0 ) {
+              document.getElementById("issuer_account").value = data.rows[0].issuer;
+            }
+          },
+          function(x,s,e) { 
+          });
+  
+}
+
+function updateDisplayJson() {
+  let jsonData = document.getElementById("display_json").value;
+  if( jsonData == "" ) {
+    jsonData = "{}";
+  }
+  try {
+    var obj = JSON.parse(jsonData);
+    obj.name = document.getElementById("token_name").value;
+    obj.logo = document.getElementById("logo").value;
+    obj.logo_lg = document.getElementById("logo_lg").value;
+    obj.web_link = document.getElementById("web_link").value;
+    obj.bg_image = document.getElementById("background_img").value;
+    obj.subtitle = document.getElementById("balance_subtitle").value;
+    document.getElementById("display_json").value = JSON.stringify(obj);
+  }
+  catch(err) {
+    console.log(err);
+  }
+}
+
+const esr_gen_base = "https://cc42.xyz";
+
+function esrGenUrl() {
+  const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+  return esr_gen_base + '/qr';
+}
+function makeQR(transaction) {
+    transaction.endpoint = chain_endpoint.slice(0, -1); // trim terminal '/'
+    $.ajax({
+      type: "POST",
+      url: esrGenUrl(),
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+function clearQR() {
+    note.innerHTML = '';
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
+}
+
+function genProposalName() {
+    var name = document.getElementById("contract_account").value.slice(0,6);
+    for (let i=6; i<10; i++) {
+      digit =  Math.floor(Math.random()*4.99 + 1).toString();
+      name += digit;
+    }
+    return name;
+}
+function makeMsigProposeQR_step1(transaction, account, permission) {
+    // get account/permission signatories from chain
+    const url = chain_endpoint + "v1/chain/get_account";
+    const data ={ account_name: account};
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        let signers = data.permissions.filter( x => x.perm_name==permission )[0].
+          required_auth.accounts?.map( a => a.permission ).
+          filter( p => p.permission !== "eosio.code");
+        if( !Array.isArray(signers) || signers.length == 0) {
+          note.innerHTML = `${account} has no delegated msig signer(s)`;
+        } else {
+          makeMsigProposeQR_step2(transaction, account, permission, signers);
+        }
+      },
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+}
+    
+function makeMsigProposeQR_step2(transaction, account, permission, signers) {
+    // serialize inner transaction
+    $.ajax({
+      type: "POST",
+      url: esr_gen_base + '/tx',
+      data: JSON.stringify(transaction),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        makeMsigProposeQR_step3(data, account, signers);
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
+    // build msig propose with all signatories
+    const duration_days = 3;
+    var expiration = new Date();
+    expiration.setDate(expiration.getDate() + duration_days);
+    const trx_hdr = {
+      expiration: expiration.toISOString().split('.')[0],
+      ref_block_num: 0,
+      ref_block_prefix: 0,
+      max_net_usage_words: 0,
+      max_cpu_usage_ms: 0,
+      delay_sec: 0,
+      context_free_actions: [],
+      transaction_extensions: []
+    }
+
+    const propose_action = {
+      account: "eosio.msig", name: "propose",
+      data: {
+        proposer: "............1",
+        proposal_name: genProposalName(),
+        requested: signers,
+        trx: {...trx_hdr, actions: serialized_transaction}
+      },
+      authorization: [{actor: "............1", permission: "active"}]
+    }
+
+    const proposal =  {
+      actions: [ propose_action ]
+    }
+    proposal.endpoint = chain_endpoint.slice(0, -1); // trim terminal '/'
+    $.ajax({
+      type: "POST",
+      url: esrGenUrl(),
+      data: JSON.stringify(proposal),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR) {
+        const prop = proposal.actions[0].data.proposal_name;
+        note.innerHTML = 
+          `msig proposal <a href=https://explorer.telos.net/proposal/${prop}> ${prop} </a>`;
+        qrcode.innerHTML = `<img src=${data.qr}>`;
+        esr.innerHTML = data.esr;
+      },
+      error: function(xhr, status, error) {
+        esr.innerHTML = xhr.responseText;
+      }
+    });
+}
+
+function setTokenDatalist(data, status, jqXHR) {
+  $("#tokens").empty();
+  data["rows"].sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
+                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
+    .forEach(function(row) {
+      $("<option/>").html(row.symbolcode).appendTo("#tokens");
+  });
+}
+function emptyTokenDatalist(x,s,e) {
+  $("#tokens").empty();
+}
+function getRows(table, scope, action, erroraction=null) {
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: document.getElementById("contract_account").value,
+                table: table,
+                scope: scope,
+                limit: 40,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: action,
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+// TBD
+}
+
+$(document).ready(function () {
+  setup_networks();
+  update_network();
+  getRows("symbols", document.getElementById("contract_account").value,
+          setTokenDatalist, emptyTokenDatalist);
+  $('#networks').click(function(){
+    update_network();
+    getRows("symbols", document.getElementById("contract_account").value,
+            setTokenDatalist, emptyTokenDatalist);
+    openTab(null, null);
+  });
+  $('#contract_account').change(function(){
+    const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
+    selected_net.contract = document.getElementById("contract_account").value;
+    console.log(networklist);
+    openTab(null, null);
+    getRows("symbols", document.getElementById("contract_account").value,
+            setTokenDatalist, emptyTokenDatalist);
+  });
+  $('#configure_QR').click(function(){
+    const transaction = config_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#create_msig_propose_QR').click(function(){
+    const transaction = create_trx(); // call common code for 'create' transaction
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+
+  $('#approve_QR').click(function(){
+    const transaction = approve_trx();
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+
+  $('#approve_msig_propose_QR').click(function(){
+    const transaction = approve_trx(); // call common code for 'approve' transaction
+    makeMsigProposeQR_step1(transaction, document.getElementById("contract_account").value, "active");
+  });
+
+  $('#setbacking_QR').click(function(){
+    const transaction = setbacking_trx();
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  
+  $('#setbacking_msig_propose_QR').click(function(){
+    const transaction = setbacking_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+
+  $('#deletebacking_QR').click(function(){
+    const transaction = deletebacking_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#deletebacking_msig_propose_QR').click(function(){
+    const transaction = deletebacking_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+
+  $('#permission_QR').click(function(){
+    const transaction = permission_trx();
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#permission_msig_propose_QR').click(function(){
+    const transaction = permission_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("staking_accts").value, "active");
+  });
+
+  $('#display_QR').click(function(){
+    updateDisplayJson();
+    const transaction = display_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#display_msig_propose_QR').click(function(){
+    updateDisplayJson();
+    const transaction = display_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+  $('#weblink_button').click(function(){
+    window.open(
+      document.getElementById("web_link").value,
+      '_blank'
+    );
+  });
+  $('#holders_button').click(function(){
+    if(document.getElementById("token_symbol").value != "") {
+      window.open(
+        `https://eosauthority.com/tokens/${document.getElementById("contract_account").value}/`+
+        `${document.getElementById("token_symbol").value}`+
+        `?network=telos`, // TODO: make this work for all networks
+        '_blank'
+      );
+    }
+  });
+  $('#validate_button').click(function(){
+    updateDisplayJson();
+    const valid = validate(JSON.parse(document.getElementById("display_json").value));
+    if(valid) {
+      alert("Passed validation");
+    } else {
+      const errs = validate.errors;
+      var complaints = "";
+      for( const e of errs ) {
+        complaints += "\n"+e.message;
+      }
+      alert(complaints);
+    }
+  });
+  $('#issue_QR').click(function(){
+    const transaction = issue_trx();
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#issue_msig_propose_QR').click(function(){
+    const transaction = issue_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+  $('#redeem_QR').click(function(){
+    const transaction = redeem_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#redeem_msig_propose_QR').click(function(){
+    const transaction = redeem_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("redeem_from").value, "active");
+  });
+  $('#freeze_QR').click(function(){
+    const transaction = freeze_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#freeze_msig_propose_QR').click(function(){
+    const transaction = freeze_trx();
+    makeMsigProposeQR_step1(transaction, document.getElementById("freeze_account").value, "active");
+  });
+  $('#ram_QR').click(function(){
+    let actions=[];
+    if( document.getElementById("seeds2telos").checked ) {
+      actions.push({
+        account: "token.seeds", name: "transfer",
+        data: {
+          quantity: "5.0000 SEEDS",
+          from: "............1",
+          to: "amm.swaps",
+          memo: "swap,0,11"
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    if( document.getElementById("buyram").checked ) {
+      actions.push({
+        account: "eosio", name: "buyrambytes",
+        data: {
+          bytes: 1000,
+          payer: "............1",
+          receiver: document.getElementById("issuer_account").value,
+        },
+        authorization: [{actor: "............1", permission: "active"}]
+      })
+    }
+    transaction =  {
+      actions: actions
+    }
+    console.log(transaction);
+    makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  $('#send_QR').click(function(){
+    const transaction = send_trx("............1");
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#send_msig_propose_QR').click(function(){
+    var actor; 
+    if ( document.getElementById("send_to").value == withdraw ) {
+      actor = withdraw;
+    } else {
+      actor = document.getElementById("send_from").value;
+    }
+    const transaction = send_trx(actor);
+    makeMsigProposeQR_step1(transaction, actor, "active");
+  });
+  
+  $('#stakes').change(function(){
+    updateReviewStake();
+    clearQR();
+  });
+  $('#staking_accts').change(function(){
+    updatePermissions();
+    clearQR();
+  });
+  $('#token_symbol').change(function(){
+    openTab(null, null);
+    updateIssuer();
+  });  
+  $('#edit_display_json').change(function(){
+    document.getElementById("display_json").readOnly = 
+      !document.getElementById("edit_display_json").checked;
+    updateDisplayJson();
+  });  
+
+  $('input').change(function(){
+    clearQR();
+  });
+  $('textarea').change(function(){
+    clearQR();
+  });
+  $('#display_json').click(function(){
+    updateDisplayJson();
+  });   
+
+ 
+});
+</script>
+
+<style>
+body {
+  font-size: 100%;
+}
+@media only screen and (max-width: 740px) {
+  body {
+    font-size: 150%;
+  }
+  .button {
+    text-align: center;
+    font-size: 100%;
+  }
+}
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+label {
+  display: inline-block;
+  width: 12em;
+  text-align: right;
+}
+.radiolabelhoriz {
+  display: inline-block;
+  width: 6em;
+  text-align: right;
+}
+
+
+</style>
+</head>
+<body>
+
+<h1 style="display:inline; margin:0; float:right; color: red;">BETA</h1>
+<h2>oSwap token exchange</h2>
+ Reference document <a href="https://docs.google.com/document/d/1ZglSqrfUC93UO6DqDn_0n4P2lc8a54-O8oEJgPq5lgc/edit"> here</a>
+. oSwaps contract repository <a href="https://github.com/chuck-h/oswaps-smart-contracts"> here</a>
+. This website repository <a href="https://github.com/chuck-h/rainboweb"> here</a>.
+<div style="background-color:Aquamarine;">
+  <p>
+  <label for="networks">Network:</label><select name="networks" id="networks"> </select>
+  <datalist id="networks"></datalist>
+  </p>
+  <datalist id="tokens"></datalist>
+  <p>
+  <label for="contract_account" >Master Contract:</label>
+  <input id="contract_account"></input> <br>
+  </p>
+</div>
+
+<div class="tab">
+  <button class="tablinks" onclick="openTab(event, 'Configure')">Configure</button>
+  <button class="tablinks" onclick="openTab(event, 'Approve')">Register Asset</button>
+  <button class="tablinks" onclick="openTab(event, 'AddBacking')">Prep Add Liquidity</button>
+  <button class="tablinks" onclick="openTab(event, 'ReviewBacking')">Prep Exchange</button>
+  <button class="tablinks" onclick="openTab(event, 'ReviewBacking')">Withdraw Liquidity</button>
+  <button class="tablinks" onclick="openTab(event, 'BackingPermissions')">Unregister Asset</button>
+  <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
+  <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
+</div>
+
+
+<div id="Configure" class="tabcontent" style="background-color:Beige;" >
+  <h3>Configure oSwap contract</h3>
+  <p>
+  <label for="contract_mgr">Manager:</label>
+  <input type="text" id="contract_mgr" name="contract_mgr" value=""> <br>
+  <label for="life_msec">Pending lifetime (msec):</label>
+  <input type="text" id="life_msec" name="life_msec" value=""> <br>
+  </p>
+  <div id="button-wrapper">
+    <input type="button" id="configure_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="create_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+
+</div>
+
+<div id="Approve" class="tabcontent" style="background-color:Beige;">
+  <h3>Approve or reject token</h3>
+  <p>
+  <div id="approved_in_table" style="visibility:hidden;">This token is already approved on-chain.</div>
+  <label for="approve">Approve:</label>
+  <input type="radio" id="approve_checked" name="approval" value="approved" checked>
+  <label for="reject_checked" class="radiolabelhoriz">Reject:</label>
+  <input type="radio" id="reject_checked" name="approval" value="rejected"> <br>
+  </p>
+   <br>
+  <div id="button-wrapper">
+    <input type="button" id="approve_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="approve_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+
+</div>
+
+<div id="AddBacking" class="tabcontent" style="background-color:Beige;">
+  <h3>Add Backing</h3>
+  <label for="bucket">Token quantity:</label>
+  <input type="text" id="bucket" name="bucket" value="1.0000"> <br>
+  <label for="staked">Backing quantity:</label>
+  <input type="text" id="staked" name="staked" value="1.0000"> <br>
+  <label for="stake_symbol">Backing symbol:</label>
+  <input type="text" id="stake_symbol" name="stake_symbol" value=""> <br>
+  <label for="stake_contract">Backing token contract:</label>
+  <input type="text" id="stake_contract" name="stake_contract" value=""> <br>
+  <label for="stake_to">Backing destination (escrow):</label>
+  <input type="text" id="stake_to" name="stake_to" value=""> <br>
+  <label for="stake_memo">Memo:</label>
+  <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
+  <label for="proportional">Proportional redeem:</label>
+  <input type="checkbox" id="proportional" > <br>
+  <label for="fraction">Reserve percentage:</label>
+  <input type="text" id="fraction" name="fraction" value="100"> <br>
+  <br>
+  <div id="button-wrapper">
+    <input type="button" id="setbacking_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="setbacking_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+
+</div>
+
+<div id="ReviewBacking" class="tabcontent" style="background-color:Beige;">
+  <h3>Review Backing</h3>
+  <div id="stakeselector">
+    <p>
+    <label for="stakes">Select backing:</label>
+    <select name="stakes" id="stakes"> </select>
+    </p>
+    <label for="r_bucket">Token quantity:</label>
+    <input type="text" id="r_bucket" name="r_bucket" value="1.0000"> <br>
+    <label for="r_staked">Backing quantity:</label>
+    <input type="text" id="r_staked" name="r_staked" value="1.0000"> <br>
+    <label for="r_stake_symbol">Backing symbol:</label>
+    <input type="text" id="r_stake_symbol" name="r_stake_symbol" value=""> <br>
+    <label for="r_stake_contract">Backing token contract:</label>
+    <input type="text" id="r_stake_contract" name="r_stake_contract" value=""> <br>
+    <label for="r_stake_to">Backing destination (escrow):</label>
+    <input type="text" id="r_stake_to" name="r_stake_to" value=""> <br>
+    <label for="r_proportional">Proportional redeem:</label>
+    <input type="checkbox" id="r_proportional" > <br>
+    <label for="r_fraction">Reserve percentage:</label>
+    <input type="text" id="r_fraction" name="r_fraction" value=""> <br>
+    <br>
+    <div id="button-wrapper">
+      <input type="button" id="deletebacking_QR" value="Delete Stake" class="button">
+      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+      <input type="button" id="deletebacking_msig_propose_QR" value="Propose Msig QR" class="button">
+    </div>
+
+  </div>
+  <div id="nostakes" style="display:none;"> No backing relationships for this token </div>
+</div>
+
+<div id="BackingPermissions" class="tabcontent" style="background-color:Beige;">
+  <h3>Set account permissions for backing</h3>
+  <div>
+    <label for="staking_accts">Select account:</label>
+    <select name="staking_accts" id="staking_accts"> </select>
+    <p>
+    <label id="permission_status"></label><br>
+    <label id="permission_action"</label>
+    </p>
+    <div id="button-wrapper">
+      <input type="button" id="permission_QR" value="Create QR" class="button">
+      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+      <input type="button" id="permission_msig_propose_QR" value="Propose Msig QR" class="button">
+          </div>
+  </div>
+</div>
+
+<div id="Display" class="tabcontent" style="background-color:Beige;">
+  <h3>Set token display information</h3>
+  <label for="token_name">Short name:</label>
+  <input type="text" id="token_name" name="token_name" value="My new token"> <br>
+  <label for="logo">Logo url:</label>
+  <input type="text" id="logo" name="logo" value=""> <br>
+  <label for="logo_lg">Logo-large url:</label>
+  <input type="text" id="logo_lg" name="logo_lg" value=""> <br>
+  <label for="web_link">Web link url:</label>
+  <input type="text" id="web_link" name="web_link" value="">
+  <input type="button" id="weblink_button" value="Visit weblink" class="button">
+  <br>
+  <label for="background_img">Background img url:</label>
+  <input type="text" id="background_img" name="background_img" value=""> <br>
+  <label for="balance_subtitle">Balance subtitle:</label>
+  <input type="text" id="balance_subtitle" name="balance_subtitle" value=""> <br>
+  <p>
+  <label for="edit_display_json">edit other json fields:</label>
+  <input type="checkbox" id="edit_display_json" > <br>
+  <label for="display_json">JSON data:</label>
+  <textarea rows="4" id="display_json" name="display_json" readonly
+           value="{}" style="vertical-align:middle;"> </textarea>
+  <input type="button" id="validate_button" value="Validate JSON" class="button"> <br>
+  </p>
+  <div id="button-wrapper">
+    <input type="button" id="display_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="display_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="Issue" class="tabcontent" style="background-color:Beige;">
+  <h3>Issue tokens</h3>
+  <label for="issue_qty">Quantity:</label>
+  <input type="text" id="issue_qty" name="issue_qty" value="1.0000"> <br>
+  <label for="issue_memo">Memo:</label>
+  <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="issue_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="issue_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="Redeem" class="tabcontent" style="background-color:Beige;">
+  <h3>Redeem tokens</h3>
+  <label for="redeem_from">Reedem from:</label>
+  <input type="text" id="redeem_from" name="redeem_from" value=""> <br>
+  <label for="redeem_qty">Quantity:</label>
+  <input type="text" id="redeem_qty" name="redeem_qty" value="1.0000"> <br>
+  <label for="redeem_memo">Memo:</label>
+  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> 
+  <input type="button" id="holders_button" value="Show token holders" class="button"> <br><br>
+    <div id="button-wrapper">
+    <input type="button" id="redeem_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="redeem_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="Freeze" class="tabcontent" style="background-color:Beige;">
+  <h3>Freeze token transfers</h3>
+  <p>
+  <div id="freezer" style="visibility:hidden;">
+    <label for="freeze_account">Freeze manager:</label>
+    <input type="text" id="freeze_account" name="freeze_account" value=""> <br>
+  </div>
+  <div id="frozen_in_table" style="visibility:hidden;">This token is already frozen on-chain.</div>
+  <label for="freeze_checked">Freeze:</label>
+  <input type="radio" id="freeze_checked" name="freezing" value="frozen" checked>
+  <label for="unfreeze_checked" class="radiolabelhoriz">Unfreeze:</label>
+  <input type="radio" id="unfreeze_checked" name="freezing" value="unfrozen"> <br>
+  </p>
+
+  <label for="freeze_memo">Memo:</label>
+  <textarea rows="2" id="freeze_memo" name="freeze_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="freeze_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="freeze_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="TopUpRam" class="tabcontent" style="background-color:Beige;">
+  <h3>Add RAM to issuer account</h3>
+(Use this if you get an "insufficient RAM" error)<br><br>
+  <p>
+  This 2-step transaction uses Tswaps to convert SEEDS to TLOS, then uses the TLOS to buy RAM for the Issuer account
+  </p>
+  <label for="seeds2telos">Convert SEEDS to TLOS</label>
+  <input type="checkbox" id="seeds2telos" 
+         onclick="document.getElementById('seeds2telos_qty').disabled =
+                  !document.getElementById('seeds2telos').checked"> <br>
+  <label for="seeds2telos_qty">SEEDS:</label>
+  <input type="text" id="seeds2telos_qty" name="seeds2telos_qty"> <br>
+  <label for="buyram">Buy 1K of RAM</label>
+  <input type="checkbox" id="buyram" > <br> <label id="buyramfor"></label>
+  <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="ram_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+</div>
+
+<div id="Send" class="tabcontent" style="background-color:Beige;">
+  <h3>Send tokens</h3>
+(An ordinary wallet transaction)<br><br>
+  <label for="send_qty">Quantity:</label>
+  <input type="text" id="send_qty" name="send_qty" value="1.0000"> <br>
+  <label for="send_from">From:</label>
+  <input type="text" id="send_from" name="send_from" value=""> <br>
+  <label for="send_to">To:</label>
+  <input type="text" id="send_to" name="send_to" value=""> <br>
+  <label for="send_memo">Memo:</label>
+  <textarea rows="2" id="send_memo" name="send_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="send_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="send_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id=note> </div>
+<div id=qrcode> </div>
+<div id=esr> </div>
+
+</body>
+</html>
+
