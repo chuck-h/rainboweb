@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-
+<!-- lib name is: eosjsName -->
+<!-- script src="https://cdn.jsdelivr.net/npm/eosjs-account-name@2.3.0/lib/index.js"></script -->
 <script type="text/javascript">
 var networklist = [{name: "Telos mainnet", contract: "oswapper1111",
                     endpoints: ["https://telos.caleos.io/", "https://mainnet.telos.net/"] },
@@ -25,6 +26,7 @@ function update_network() {
   document.getElementById("contract_account").value = selected_net.contract;
   chain_endpoint = selected_net.endpoints[0]; // todo: failover on dead endpoint
 }
+
 
 function offsetDateHTML(isoDate) {
   let htmlDate = new Date(isoDate);
@@ -54,8 +56,8 @@ function openTab(evt, tabName) {
   if( tabName=="Approve" ) {
     setupApproveTab();
   }
-  if( tabName=="AddBacking" ) {
-    setupAddBackingTab();
+  if( tabName=="AddLiqPrep" ) {
+    setupAddLiquidityTab();
   }
   if( tabName=="ReviewBacking" ) {
     setupReviewStakesTab();
@@ -114,14 +116,18 @@ function config_trx() {
   return transaction;
 }  
 
-function approve_trx() {
-  const actor = document.getElementById("contract_account").value;
+function register_trx() {
+  const actor = document.getElementById("registrant").value;
   let actions=[];
   actions.push({
-    account: actor, name: "approve",
+    account: document.getElementById("contract_account").value,
+    name: "createasseta",
     data: {
-      symbolcode: document.getElementById("token_symbol").value,
-      reject_and_clear: document.getElementById("reject_checked").checked,
+      actor: actor,
+      chain: "Telos",
+      contract: document.getElementById("token_contract").value,
+      symbol: document.getElementById("token_symbol").value,
+      meta: document.getElementById("asset_meta").value,
     },
     authorization: [{actor: actor, permission: "active"}]
   })
@@ -144,23 +150,17 @@ function setupApproveTab() {
     function(x,s,e) { } );
 }
 
-function setbacking_trx() {
-    const issuer = document.getElementById("issuer_account").value;
+function addliq_trx() {
     let actions=[];
     actions.push({
-      account: document.getElementById("contract_account").value, name: "setbacking",
+      account: document.getElementById("contract_account").value, name: "addliqprep",
       data: {
-        token_bucket: (document.getElementById("bucket").value + " " +
-                         document.getElementById("token_symbol").value),
-        backs_per_bucket: (document.getElementById("staked").value + " " +
-                         document.getElementById("stake_symbol").value),
-        backing_token_contract: document.getElementById("stake_contract").value,
-        escrow: document.getElementById("stake_to").value,
-        proportional: document.getElementById("proportional").checked,
-        reserve_fraction: parseInt(document.getElementById("fraction").value),
-        memo: document.getElementById("stake_memo").value,
+        account: document.getElementById("liq_source").value,
+        token_id: 1, // get from pull-down
+        amount: document.getElementById("add_amount").value,
+        weight: document.getElementById("add_weight").value,
       },
-      authorization: [{actor: issuer, permission: "active"}]
+      authorization: [{actor: "............1", permission: "............2"}]
     })
 
     transaction =  {
@@ -188,20 +188,23 @@ function deletebacking_trx() {
     return transaction;
 }
 
-function setupAddBackingTab() {  
-  getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
-        if( qtysplit.length == 1 ) {
-          document.getElementById("bucket").value = "1";
-        } else {
-          document.getElementById("bucket").value = `1.${qtysplit[1]}`; 
-        } 
-      }
-    },
-    function(x,s,e) { } );
-}
+function setupAddLiquidityTab() {  
+  // TODO handle paging ('more' field = true)
+  getRows("assetsa", document.getElementById("contract_account").value, 
+            function(data, status, jqXHR) {
+              if( data.rows.length == 0 ) {
+                // no assets registered yet
+              } else {
+                $("#assets").empty();
+                data["rows"].forEach(function(row) {
+                  const this_symbol = row.symbol.padEnd(7,' ');
+                  const this_contract = `{row.contract_code}`.padEnd(13,' ');
+                  $("<option/>").html(`${this_symbol} ${this_contract}`).appendTo("#assets");
+                });
+              }        
+            },
+            function(x,s,e) { 
+            } );}
 
 function permission_trx() {
     const backing_acct = document.getElementById("staking_accts").value;
@@ -645,8 +648,10 @@ function genProposalName() {
     }
     return name;
 }
-function makeMsigProposeQR_step1(transaction, account, permission) {
+function makeMsigProposeQR_step1(transaction) {
     // get account/permission signatories from chain
+    const account = transaction.actions[0].authorization[0].actor;
+    const permission = transaction.actions[0].authorization[0].permission;
     const url = chain_endpoint + "v1/chain/get_account";
     const data ={ account_name: account};
     $.ajax({
@@ -780,53 +785,44 @@ function getRows(table, scope, action, erroraction=null) {
 $(document).ready(function () {
   setup_networks();
   update_network();
-  getRows("symbols", document.getElementById("contract_account").value,
-          setTokenDatalist, emptyTokenDatalist);
   $('#networks').click(function(){
     update_network();
-    getRows("symbols", document.getElementById("contract_account").value,
-            setTokenDatalist, emptyTokenDatalist);
-    openTab(null, null);
   });
   $('#contract_account').change(function(){
     const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
     selected_net.contract = document.getElementById("contract_account").value;
     console.log(networklist);
     openTab(null, null);
-    getRows("symbols", document.getElementById("contract_account").value,
-            setTokenDatalist, emptyTokenDatalist);
   });
   $('#configure_QR').click(function(){
     const transaction = config_trx();
     console.log(transaction);
     makeQR(transaction);
   });
-  $('#create_msig_propose_QR').click(function(){
-    const transaction = create_trx(); // call common code for 'create' transaction
-    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  $('#configure_msig_propose_QR').click(function(){
+    const transaction = config_trx(); // call common code for 'init' transaction
+    makeMsigProposeQR_step1(transaction);
   });
 
-  $('#approve_QR').click(function(){
-    const transaction = approve_trx();
+  $('#register_QR').click(function(){
+    const transaction = register_trx();
     makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
   });
 
-  $('#approve_msig_propose_QR').click(function(){
-    const transaction = approve_trx(); // call common code for 'approve' transaction
-    makeMsigProposeQR_step1(transaction, document.getElementById("contract_account").value, "active");
-  });
-
-  $('#setbacking_QR').click(function(){
-    const transaction = setbacking_trx();
+  $('#register_msig_propose_QR').click(function(){
+    const transaction = register_trx(); // call common code for 'createasseta' transaction
+    makeMsigProposeQR_step1(transaction);  });
+    
+  $('#add_liq_QR').click(function(){
+    const transaction = addliq_trx();
     console.log(transaction);
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
   
-  $('#setbacking_msig_propose_QR').click(function(){
-    const transaction = setbacking_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  $('#add_liq_msig_propose_QR').click(function(){
+    const transaction = addliq_trx();
+    makeMsigProposeQR_step1(transaction);
   });
 
   $('#deletebacking_QR').click(function(){
@@ -836,7 +832,7 @@ $(document).ready(function () {
   });
   $('#deletebacking_msig_propose_QR').click(function(){
     const transaction = deletebacking_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
 
   $('#permission_QR').click(function(){
@@ -847,7 +843,7 @@ $(document).ready(function () {
   });
   $('#permission_msig_propose_QR').click(function(){
     const transaction = permission_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("staking_accts").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
 
   $('#display_QR').click(function(){
@@ -859,7 +855,7 @@ $(document).ready(function () {
   $('#display_msig_propose_QR').click(function(){
     updateDisplayJson();
     const transaction = display_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
   $('#weblink_button').click(function(){
     window.open(
@@ -899,7 +895,7 @@ $(document).ready(function () {
   });
   $('#issue_msig_propose_QR').click(function(){
     const transaction = issue_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
   $('#redeem_QR').click(function(){
     const transaction = redeem_trx();
@@ -908,7 +904,7 @@ $(document).ready(function () {
   });
   $('#redeem_msig_propose_QR').click(function(){
     const transaction = redeem_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("redeem_from").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
   $('#freeze_QR').click(function(){
     const transaction = freeze_trx();
@@ -917,7 +913,7 @@ $(document).ready(function () {
   });
   $('#freeze_msig_propose_QR').click(function(){
     const transaction = freeze_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("freeze_account").value, "active");
+    makeMsigProposeQR_step1(transaction);
   });
   $('#ram_QR').click(function(){
     let actions=[];
@@ -964,7 +960,7 @@ $(document).ready(function () {
       actor = document.getElementById("send_from").value;
     }
     const transaction = send_trx(actor);
-    makeMsigProposeQR_step1(transaction, actor, "active");
+    makeMsigProposeQR_step1(transaction);
   });
   
   $('#stakes').change(function(){
@@ -1075,7 +1071,6 @@ label {
   <label for="networks">Network:</label><select name="networks" id="networks"> </select>
   <datalist id="networks"></datalist>
   </p>
-  <datalist id="tokens"></datalist>
   <p>
   <label for="contract_account" >Master Contract:</label>
   <input id="contract_account"></input> <br>
@@ -1084,11 +1079,11 @@ label {
 
 <div class="tab">
   <button class="tablinks" onclick="openTab(event, 'Configure')">Configure</button>
-  <button class="tablinks" onclick="openTab(event, 'Approve')">Register Asset</button>
-  <button class="tablinks" onclick="openTab(event, 'AddBacking')">Prep Add Liquidity</button>
-  <button class="tablinks" onclick="openTab(event, 'ReviewBacking')">Prep Exchange</button>
-  <button class="tablinks" onclick="openTab(event, 'ReviewBacking')">Withdraw Liquidity</button>
-  <button class="tablinks" onclick="openTab(event, 'BackingPermissions')">Unregister Asset</button>
+  <button class="tablinks" onclick="openTab(event, 'RegisterAsset')">Register Asset</button>
+  <button class="tablinks" onclick="openTab(event, 'AddLiqPrep')">Prep Add Liquidity</button>
+  <button class="tablinks" onclick="openTab(event, 'PrepExchange')">Prep Exchange</button>
+  <button class="tablinks" onclick="openTab(event, 'WithdrawLiquidity')">Withdraw Liquidity</button>
+  <button class="tablinks" onclick="openTab(event, 'UnregisterAsset')">Unregister Asset</button>
   <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
   <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
 </div>
@@ -1105,58 +1100,73 @@ label {
   <div id="button-wrapper">
     <input type="button" id="configure_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="create_msig_propose_QR" value="Propose Msig QR" class="button">
+    <input type="button" id="configure_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
 
-<div id="Approve" class="tabcontent" style="background-color:Beige;">
-  <h3>Approve or reject token</h3>
+<div id="RegisterAsset" class="tabcontent" style="background-color:Beige;">
+  <h3>Register an Asset</h3>
   <p>
-  <div id="approved_in_table" style="visibility:hidden;">This token is already approved on-chain.</div>
-  <label for="approve">Approve:</label>
-  <input type="radio" id="approve_checked" name="approval" value="approved" checked>
-  <label for="reject_checked" class="radiolabelhoriz">Reject:</label>
-  <input type="radio" id="reject_checked" name="approval" value="rejected"> <br>
+    <label for="registrant">Registrant:</label>
+    <input type="text" id="registrant" name="registrant" value=""> <br>
+    <label for="token_contract">Token contract:</label>
+    <input type="text" id="token_contract" name="token_contract" value=""> <br>
+    <label for="token_symbol">Token symbol:</label>
+    <input type="text" id="token_symbol" name="token_symbol" value=""> <br>
+    <label for="asset_meta">Asset metadata:</label>
+    <input type="text" id="asset_meta" name="asset_meta" value=""> <br>
+
   </p>
    <br>
   <div id="button-wrapper">
-    <input type="button" id="approve_QR" value="Create QR" class="button">
+    <input type="button" id="register_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="approve_msig_propose_QR" value="Propose Msig QR" class="button">
+    <input type="button" id="register_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
 
-<div id="AddBacking" class="tabcontent" style="background-color:Beige;">
-  <h3>Add Backing</h3>
-  <label for="bucket">Token quantity:</label>
-  <input type="text" id="bucket" name="bucket" value="1.0000"> <br>
-  <label for="staked">Backing quantity:</label>
-  <input type="text" id="staked" name="staked" value="1.0000"> <br>
-  <label for="stake_symbol">Backing symbol:</label>
-  <input type="text" id="stake_symbol" name="stake_symbol" value=""> <br>
-  <label for="stake_contract">Backing token contract:</label>
-  <input type="text" id="stake_contract" name="stake_contract" value=""> <br>
-  <label for="stake_to">Backing destination (escrow):</label>
-  <input type="text" id="stake_to" name="stake_to" value=""> <br>
-  <label for="stake_memo">Memo:</label>
-  <textarea rows="2" id="stake_memo" name="stake_memo" value="" style="vertical-align:middle;"> </textarea> <br>
-  <label for="proportional">Proportional redeem:</label>
-  <input type="checkbox" id="proportional" > <br>
-  <label for="fraction">Reserve percentage:</label>
-  <input type="text" id="fraction" name="fraction" value="100"> <br>
+<div id="AddLiqPrep" class="tabcontent" style="background-color:Beige;">
+  <h3>Add Liquidity - setup</h3>
+  <label for="liq_source">Source account:</label>
+  <input type="text" id="liq_source" name="liq_source" value=""> <br>
+  <label for="assets">Token:</label><select name="assets" id="assets"> </select>
+  <datalist id="assets"></datalist>
+  <label for="add_amount">Quantity:</label>
+  <input type="text" id="add_amount" name="add_amount" value=""> <br>
+  <label for="add_weight">Weighting:</label>
+  <input type="text" id="add_weight" name="add_weight" value=""> <br>
   <br>
   <div id="button-wrapper">
-    <input type="button" id="setbacking_QR" value="Create QR" class="button">
+    <input type="button" id="add_liq_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="setbacking_msig_propose_QR" value="Propose Msig QR" class="button">
+    <input type="button" id="add_liq_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
 
-<div id="ReviewBacking" class="tabcontent" style="background-color:Beige;">
-  <h3>Review Backing</h3>
+<div id="WithdrawLiquidity" class="tabcontent" style="background-color:Beige;">
+  <h3>Withdraw Liquidity</h3>
+  <label for="liq_recip">Recipient account:</label>
+  <input type="text" id="liq_recip" name="liq_recip" value=""> <br>
+  <label for="assets">Token:</label><select name="assets" id="assets"> </select>
+  <datalist id="assets"></datalist>
+  <label for="withdraw_amount">Quantity:</label>
+  <input type="text" id="withdraw_amount" name="withdraw_amount" value=""> <br>
+  <label for="withdraw_weight">Weighting:</label>
+  <input type="text" id="withdraw_weight" name="withdraw_weight" value=""> <br>
+  <br>
+  <div id="button-wrapper">
+    <input type="button" id="add_liq_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="add_liq_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+
+</div>
+
+<div id="PrepExchange" class="tabcontent" style="background-color:Beige;">
+  <h3>Exchange Transaction - setup</h3>
   <div id="stakeselector">
     <p>
     <label for="stakes">Select backing:</label>
@@ -1187,15 +1197,13 @@ label {
   <div id="nostakes" style="display:none;"> No backing relationships for this token </div>
 </div>
 
-<div id="BackingPermissions" class="tabcontent" style="background-color:Beige;">
-  <h3>Set account permissions for backing</h3>
+<div id="UnregisterAsset" class="tabcontent" style="background-color:Beige;">
+  <h3>Unregister an Asset</h3>
   <div>
-    <label for="staking_accts">Select account:</label>
-    <select name="staking_accts" id="staking_accts"> </select>
-    <p>
-    <label id="permission_status"></label><br>
-    <label id="permission_action"</label>
-    </p>
+    <label for="forget_asset">Token:</label>
+    <select name="forget_asset" id="forget_asset"> </select> <br>
+    <br>
+    
     <div id="button-wrapper">
       <input type="button" id="permission_QR" value="Create QR" class="button">
       <input type="button" value="Clear QR" onclick="clearQR()" class="button">
