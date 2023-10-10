@@ -59,17 +59,14 @@ async function getJoinEsr(data) {
   }
 }
     
-$(document).ready(function () {
-  $('#join_QR').click(async function(){
-    result = await getJoinEsr( {sponsor: "coinsacct112"} )
+$(document).ready(async function () {
+    result = await getJoinEsr( {sponsor: document.getElementById("sponsor_account").value} )
     if (result.error) {
       esr.innerHTML = JSON.stringify(result)
     } else {
         qrcode.innerHTML = `<img src=${result.qr}>`;
         esr.innerHTML = result.esr;
     } 
-  });
-
 });
 </script>
 
@@ -147,15 +144,13 @@ label {
   <br>
   Use an existing Telos account to join SEEDS
   </p>
+  <p>
+  <label for="sponsor_account" >Sponsor:</label>
+  <input id="sponsor_account", value="coinsacct112"></input> <br>
+  </p>
   <br>
 </div>
 <br>
-
-<div id="button-wrapper">
-    <input type="button" id="join_QR" value="Join" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-  </div>
-</div>
 
 <div id=qrcode> </div>
 <div id=esr> </div>
