@@ -58,15 +58,23 @@ async function getJoinEsr(data) {
     return {error: error.message}
   }
 }
+
+async function issueInvite() {
+  clearQR();
+  result = await getJoinEsr( {sponsor: document.getElementById("sponsor_account").value} )
+  if (result.error) {
+    esr.innerHTML = JSON.stringify(result)
+  } else {
+    qrcode.innerHTML = `<img src=${result.qr}>`;
+    esr.innerHTML = result.esr;
+  } 
+}
     
 $(document).ready(async function () {
-    result = await getJoinEsr( {sponsor: document.getElementById("sponsor_account").value} )
-    if (result.error) {
-      esr.innerHTML = JSON.stringify(result)
-    } else {
-        qrcode.innerHTML = `<img src=${result.qr}>`;
-        esr.innerHTML = result.esr;
-    } 
+  $('#sponsor_account').change(function(){
+    issueInvite();
+  });
+  issueInvite();
 });
 </script>
 
@@ -146,7 +154,7 @@ label {
   </p>
   <p>
   <label for="sponsor_account" >Sponsor:</label>
-  <input id="sponsor_account", value="coinsacct112"></input> <br>
+  <input id="sponsor_account", value="chuck"></input> <br>
   </p>
   <br>
 </div>
