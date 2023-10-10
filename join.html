@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+
+
+
+function esrGenUrl() {
+  const esr_gen_base = "https://cc42.xyz";
+  return esr_gen_base + '/join';
+}
+function clearQR() {
+    qrcode.innerHTML = ``;
+    esr.innerHTML = ``;
+}
+
+function getRows(contract, table, scope, action, erroraction=null) {
+  const chain_endpoint = "https://telos.caleos.io/";
+  const url = chain_endpoint + "v1/chain/get_table_rows";
+  const data ={ code: contract,
+                table: table,
+                scope: scope,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: action,
+      error: function(xhr, status, error) {
+        if(erroraction==null) {
+          alert(xhr.responseText);
+        } else {
+          erroraction(xhr, status, error);
+        }
+      }
+    });
+}
+
+async function getJoinEsr(data) {
+  try {
+    const response = await fetch(esrGenUrl(), {
+        method: "POST",
+        //mode: "cors",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(data)
+      })
+    const rv = await response.json()
+    return rv
+  } catch (error) {
+    return {error: error.message}
+  }
+}
+    
+$(document).ready(function () {
+  $('#join_QR').click(async function(){
+    result = await getJoinEsr( {sponsor: "coinsacct112"} )
+    if (result.error) {
+      esr.innerHTML = JSON.stringify(result)
+    } else {
+        qrcode.innerHTML = `<img src=${result.qr}>`;
+        esr.innerHTML = result.esr;
+    } 
+  });
+
+});
+</script>
+
+<style>
+body {
+  font-size: 100%;
+}
+@media only screen and (max-width: 740px) {
+  body {
+    font-size: 150%;
+  }
+  .button {
+    text-align: center;
+    font-size: 100%;
+  }
+}
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid #ccc;
+  background-color: #f1f1f1;
+}
+
+/* Style the buttons inside the tab */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: 0.3s;
+  font-size: 17px;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+label {
+  display: inline-block;
+  width: 12em;
+  text-align: right;
+}
+.radiolabelhoriz {
+  display: inline-block;
+  width: 6em;
+  text-align: right;
+}
+
+
+</style>
+</head>
+<body>
+
+<h1 style="display:inline; margin:0; float:right; color: red;">BETA</h1>
+<h2>Join SEEDS</h2>
+
+<div style="background-color:Gold">
+  <p>
+  <br>
+  Use an existing Telos account to join SEEDS
+  </p>
+  <br>
+</div>
+<br>
+
+<div id="button-wrapper">
+    <input type="button" id="join_QR" value="Join" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+  </div>
+</div>
+
+<div id=qrcode> </div>
+<div id=esr> </div>
+
+</body>
+</html>
+
