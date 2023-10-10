@@ -1132,7 +1132,7 @@ label {
   <label for="liq_source">Source account:</label>
   <input type="text" id="liq_source" name="liq_source" value=""> <br>
   <label for="assets">Token:</label><select name="assets" id="assets"> </select>
-  <datalist id="assets"></datalist>
+  <datalist id="assets"></datalist> <br>
   <label for="add_amount">Quantity:</label>
   <input type="text" id="add_amount" name="add_amount" value=""> <br>
   <label for="add_weight">Weighting:</label>
@@ -1150,8 +1150,12 @@ label {
   <h3>Withdraw Liquidity</h3>
   <label for="liq_recip">Recipient account:</label>
   <input type="text" id="liq_recip" name="liq_recip" value=""> <br>
-  <label for="assets">Token:</label><select name="assets" id="assets"> </select>
-  <datalist id="assets"></datalist>
+  <label for="withdraw_asset">Token:</label>
+  <input list="w_assets" name="withdraw_asset" id="withdraw_asset" > <br>
+  <datalist id="w_assets">
+    <option value="TOKARAH">
+    <option value="TOKAROO">
+  </datalist>
   <label for="withdraw_amount">Quantity:</label>
   <input type="text" id="withdraw_amount" name="withdraw_amount" value=""> <br>
   <label for="withdraw_weight">Weighting:</label>
@@ -1169,30 +1173,44 @@ label {
   <h3>Exchange Transaction - setup</h3>
   <div id="stakeselector">
     <p>
-    <label for="stakes">Select backing:</label>
-    <select name="stakes" id="stakes"> </select>
+    <label for="exch_sender">Sender:</label>
+    <input type="text" id="exch_sender" name="exch_sender" value=""> <br>
+    <label for="input_asset">Input token:</label>
+    <input list="in_assets" name="input_asset" id="input_asset" > <br>
+    <datalist id="in_assets">
+      <option value="TOKARAH">
+      <option value="TOKAROO">
+    </datalist>
+    <label for="input_amt">Token quantity:</label>
+    <input type="text" id="input_amt" name="input_amt" value=""> <br>
     </p>
-    <label for="r_bucket">Token quantity:</label>
-    <input type="text" id="r_bucket" name="r_bucket" value="1.0000"> <br>
-    <label for="r_staked">Backing quantity:</label>
-    <input type="text" id="r_staked" name="r_staked" value="1.0000"> <br>
-    <label for="r_stake_symbol">Backing symbol:</label>
-    <input type="text" id="r_stake_symbol" name="r_stake_symbol" value=""> <br>
-    <label for="r_stake_contract">Backing token contract:</label>
-    <input type="text" id="r_stake_contract" name="r_stake_contract" value=""> <br>
-    <label for="r_stake_to">Backing destination (escrow):</label>
-    <input type="text" id="r_stake_to" name="r_stake_to" value=""> <br>
-    <label for="r_proportional">Proportional redeem:</label>
-    <input type="checkbox" id="r_proportional" > <br>
-    <label for="r_fraction">Reserve percentage:</label>
-    <input type="text" id="r_fraction" name="r_fraction" value=""> <br>
+    <p>
+    <label for="exch_recip">Recipient:</label>
+    <input type="text" id="exch_recip" name="exch_recip" value=""> <br>
+    <label for="output_asset">Output token:</label>
+    <input list="output_assets" name="output_asset" id="output_asset" > <br>
+    <datalist id="output_assets">
+      <option value="TOKARAH">
+      <option value="TOKAROO">
+    </datalist>
+
+    <label for="output_amt">Token quantity:</label>
+    <input type="text" id="output_amt" name="output_amt" value=""> <br>
+    </p>
+    <p>
+    <label for="in_exact">Input is exact:</label>
+    <input type="radio" id="in_exact_checked" name="approval" value="in_exact" checked>
+    <label for="out_exact" class="radiolabelhoriz">Output is exact:</label>
+    <input type="radio" id="out_exact_checked" name="approval" value="out_exact"> <br>
+    </p>
     <br>
     <div id="button-wrapper">
-      <input type="button" id="deletebacking_QR" value="Delete Stake" class="button">
-      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-      <input type="button" id="deletebacking_msig_propose_QR" value="Propose Msig QR" class="button">
+      <input type="button" id="exchange_setup" value="Set up exchange" class="button">
     </div>
-
+    <p>
+    <label for="exch_nonce">Reference:</label>
+    <input type="text" id="exch_nonce" name="exch_nonce" value="" disabled> <br>
+    </p>
   </div>
   <div id="nostakes" style="display:none;"> No backing relationships for this token </div>
 </div>
