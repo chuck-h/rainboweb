@@ -45,7 +45,6 @@ const asset_selector_ids = [
 ]
 
 function getAssets() {
-  $("#assets").empty();
   asset_selector_ids.forEach( (id) => 
     document.getElementById(id).options.length = 0
   )
@@ -66,7 +65,6 @@ function setAssetDatalist(data, status, jqXHR) {
        console.log(row)
        const option_string = `${row.symbol.padEnd(7,' ')} ${
                                 row.contract_name.padEnd(13,' ')} id:${row.token_id}`
-      $("<option/>").html(option_string).appendTo("#assets");
       asset_selector_ids.forEach( (id) => {
         sel = document.getElementById(id)
         sel.options[sel.options.length] = new Option(option_string, option_string)
@@ -102,8 +100,8 @@ function openTab(evt, tabName) {
   if( tabName=="WithdrawLiquidity" ) {
     setupWithdrawLiquidityTab();
   }
-  if( tabName=="BackingPermissions" ) {
-    setupPermissionsTab();
+  if( tabName=="PrepExchange" ) {
+    setupPrepExchangeTab();
   }
   if( tabName=="Display" ) {
     setupDisplayTab();
@@ -236,55 +234,31 @@ function setupWithdrawLiquidityTab() {
   getAssets()
 }
 
-function permission_trx() {
-    const backing_acct = document.getElementById("staking_accts").value;
+function setupPrepExchangeTab() {  
+  getAssets()
+}
+
+function prepExchange_trx() {
+    const mods = document.getElementById("in_exact_checked").value ? "{exact: in}" : "{exact: out}";
     let actions=[];
-    var auth_object = JSON.parse(JSON.stringify(active_auth.required_auth));
-    auth_object.parent = active_auth.parent;
-    auth_object.perm_name = active_auth.perm_name;
-    if( document.getElementById("permission_action").textContent.includes("add") ) {
-      auth_object.accounts.push( {
-        permission: { actor: document.getElementById("contract_account").value, 
-                       permission: "eosio.code" },
-        weight: 1
-      });
-      auth_object.accounts.sort(
-         (a, b) =>
-             a.permission.actor.localeCompare(b.permission.actor));
-    } else {
-      code_permission = active_auth.required_auth.accounts.findIndex(function(acct){
-        return acct.permission.actor==document.getElementById("contract_account").value
-           && acct.permission.permission=="eosio.code";}) ;
-      auth_object.accounts.splice(code_permission,1);
-    }
     actions.push({
-      account: "eosio", name: "updateauth",
+      account: document.getElementById("contract_account").value, name: "exchangeprep",
       data: {
-        account: backing_acct,
-        permission: "active",
-        parent: "owner",
-        auth: auth_object
+        sender: document.getElementById("exch_sender").value,
+        in_token_id: document.getElementById("input_asset").value.slice(-1), // TODO handle n>9
+        in_amount: document.getElementById("input_amt").value,
+        recipient: document.getElementById("exch_recip").value,
+        out_token_id: document.getElementById("output_asset").value.slice(-1),
+        out_amount: document.getElementById("output_amt").value,
+        mods: mods,
+        memo: ""
       },
-      authorization: [{actor: backing_acct, permission: "active"}]
+      authorization: []
     })
     transaction =  {
       actions: actions
     }
     return transaction;
-}
-
-function setupPermissionsTab() {
-    getRows("backings", document.getElementById("token_symbol").value,
-            function(data, status, jqXHR) {
-              $("#staking_accts").empty();
-              const accts = new Set();
-              accts.add(document.getElementById("issuer_account").value);
-              data.rows.map( function(row) { accts.add(row.escrow); } );
-              accts.forEach(function(acct) {
-                $("<option/>").html(`${acct}`).appendTo("#staking_accts");
-              });
-              updatePermissions();       
-            });
 }
 
 function updatePermissions() {
@@ -865,6 +839,14 @@ $(document).ready(function () {
     makeMsigProposeQR_step1(transaction);
   });
 
+  $('#exchange_setup').click(function(){
+    const transaction = prepExchange_trx();
+    console.log(transaction);
+    
+    //makeQR(transaction);
+    // TBD: check blockchain for transaction posted, or timeout?
+  });
+  
   $('#permission_QR').click(function(){
     const transaction = permission_trx();
     console.log(transaction);
