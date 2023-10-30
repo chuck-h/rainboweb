@@ -41,7 +41,8 @@ const asset_selector_ids = [
   "input_asset",
   "output_asset",
   "add_asset",
-  "forget_asset"
+  "forget_asset",
+  "send_asset"
 ]
 
 function getAssets() {
@@ -194,30 +195,11 @@ function addliq_trx() {
       account: document.getElementById("contract_account").value, name: "addliqprep",
       data: {
         account: document.getElementById("liq_source").value,
-        token_id: 1, // get from pull-down
+        token_id: document.getElementById("add_asset").value.slice(-1), // TODO handle n>9
         amount: document.getElementById("add_amount").value,
         weight: (document.getElementById("add_weight").value.toString()),
       },
       authorization: [{actor: "............1", permission: "............2"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    return transaction;
-}
-
-function deletebacking_trx() {
-    const issuer = document.getElementById("issuer_account").value;
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "deletebacking",
-      data: {
-        backing_index: document.getElementById("stakes").value.split(" ")[0],
-        symbolcode: document.getElementById("token_symbol").value,
-        memo: "",
-      },
-      authorization: [{actor: issuer, permission: "active"}]
     })
 
     transaction =  {
@@ -239,7 +221,7 @@ function setupPrepExchangeTab() {
 }
 
 function prepExchange_trx() {
-    const mods = document.getElementById("in_exact_checked").value ? "{exact: in}" : "{exact: out}";
+    const mods = document.getElementById("in_exact_checked").value ? '{"exact": "in"}' : '{"exact": "out"}';
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "exchangeprep",
@@ -253,7 +235,7 @@ function prepExchange_trx() {
         mods: mods,
         memo: ""
       },
-      authorization: []
+      authorization: [{actor: "............1", permission: "active"}]
     })
     transaction =  {
       actions: actions
@@ -261,29 +243,27 @@ function prepExchange_trx() {
     return transaction;
 }
 
-function updatePermissions() {
-  const url = chain_endpoint + "v1/chain/get_account";
-  const data ={ account_name: document.getElementById("staking_accts").value,
-                json: "true" };
-    $.ajax({
-      type: "POST",
-      url: url,
-      data: JSON.stringify(data),
-      contentType: "application/json; charset=utf-8",
-      dataType: "json",
-      success: function(data, status, jqXHR) {
-        showAccountPermission(data);
-      },
-      error: function(xhr, status, error) {
-        if(erroraction==null) {
-          alert(xhr.responseText);
-        } else {
-          erroraction(xhr, status, error);
-        }
+var pendingExch;
+var pendingAdd;
+function updatePending() {
+  getRows("expreps", document.getElementById("contract_account").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        pendingExch = data["rows"].sorted((a,b) => (a.expires > b.expires) ? 1 : 
+                         ((b.expires > a.expires) ? -1 : 0))
       }
-    });
-// TBD
+    },
+    function(x,s,e) { } );
+  getRows("addprep", document.getElementById("contract_account").value, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        pendingAdd = data["rows"].sorted((a,b) => (a.expires > b.expires) ? 1 : 
+                         ((b.expires > a.expires) ? -1 : 0))
+      }
+    },
+    function(x,s,e) { } );
 }
+
 function showAccountPermission(data) {
   active_auth = data.permissions.find(function(row){return row.perm_name=="active";});
   permission_exists = "undefined" != typeof( active_auth.required_auth.accounts.find(function(acct){
@@ -489,11 +469,12 @@ function setupRamTab() {
 var withdraw;
 function send_trx(actor) {
     let actions=[];
+    const toke = document.getElementById("send_asset").value.split(/\s+/)
+    console.log(toke);
     actions.push({
-      account: document.getElementById("contract_account").value, name: "transfer",
+      account: toke[1], name: "transfer",
       data: {
-        quantity: (document.getElementById("send_qty").value + " " +
-                   document.getElementById("token_symbol").value),
+        quantity: (document.getElementById("send_qty").value + " " + toke[0]),
         from: document.getElementById("send_from").value,
         to: document.getElementById("send_to").value,
         memo: document.getElementById("send_memo").value
@@ -506,28 +487,30 @@ function send_trx(actor) {
     }
     return transaction;
 }
-function setupSendTab() {
-  withdraw = "eosio.null";  
-  getRows("stat", document.getElementById("token_symbol").value, 
+
+function updateSendTab() {
+  const toke = document.getElementById("send_asset").value.split(/\s+/)
+  getRows("stat", toke[0], 
     function(data, status, jqXHR){
       if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+        const max_supply = data.rows[0].max_supply ?? data.rows[0].initial_supply; // token.seeds quirk
+        let qtysplit = max_supply.split(" ")[0].split(".");
         if( qtysplit.length == 1 ) {
           document.getElementById("send_qty").value = "1";
         } else {
           document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
         }
-        getRows("configs", document.getElementById("token_symbol").value, 
-          function(data, status, jqXHR){
-            withdraw = data.rows[0].withdrawal_mgr;
-          },
-          function(x,s,e) { } );
       }
     },
-    function(x,s,e) { } );
+    function(x,s,e) { },
+    toke[1] );
+}
 
+function setupSendTab() {
+  getAssets();
+  updateSendTab(); // TODO make update execute after asset list has been loaded.
   document.getElementById("send_from").value = "";
-  document.getElementById("send_to").value = "";
+  document.getElementById("send_to").value = document.getElementById("contract_account").value;
   document.getElementById("send_memo").value = "";
 }
 
@@ -761,13 +744,20 @@ function setTokenDatalist(data, status, jqXHR) {
 function emptyTokenDatalist(x,s,e) {
   $("#tokens").empty();
 }
-function getRows(table, scope, action, erroraction=null) {
+function getRows(table, scope, action, erroraction=null, code=null) {
   const url = chain_endpoint + "v1/chain/get_table_rows";
-  const data ={ code: document.getElementById("contract_account").value,
+  const code_was_null = (code==null);
+  if (code_was_null) {
+    code = document.getElementById("contract_account").value;
+  }
+  const data ={ code: code,
                 table: table,
                 scope: scope,
                 limit: 40,
                 json: "true" };
+  if (!code_was_null) {
+    console.log("getRows "+JSON.stringify(data));
+  }           
     $.ajax({
       type: "POST",
       url: url,
@@ -829,21 +819,10 @@ $(document).ready(function () {
     makeMsigProposeQR_step1(transaction);
   });
 
-  $('#deletebacking_QR').click(function(){
-    const transaction = deletebacking_trx();
-    console.log(transaction);
-    makeQR(transaction);
-  });
-  $('#deletebacking_msig_propose_QR').click(function(){
-    const transaction = deletebacking_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
-
-  $('#exchange_setup').click(function(){
+  $('#prep_exch_QR').click(function(){
     const transaction = prepExchange_trx();
     console.log(transaction);
-    
-    //makeQR(transaction);
+    makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
   
@@ -959,6 +938,10 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#send_asset').change(function(){
+    updateSendTab()
+  });
+
   $('#send_QR').click(function(){
     const transaction = send_trx("............1");
     console.log(transaction);
@@ -1205,14 +1188,10 @@ label {
     </p>
     <br>
     <div id="button-wrapper">
-      <input type="button" id="exchange_setup" value="Set up exchange" class="button">
+      <input type="button" id="prep_exch_QR" value="Create QR" class="button">
+      <input type="button" value="Clear QR" onclick="clearQR()" class="button">
     </div>
-    <p>
-    <label for="exch_nonce">Reference:</label>
-    <input type="text" id="exch_nonce" name="exch_nonce" value="" disabled> <br>
-    </p>
   </div>
-  <div id="nostakes" style="display:none;"> No backing relationships for this token </div>
 </div>
 
 <div id="UnregisterAsset" class="tabcontent" style="background-color:Beige;">
@@ -1337,6 +1316,8 @@ label {
 <div id="Send" class="tabcontent" style="background-color:Beige;">
   <h3>Send tokens</h3>
 (An ordinary wallet transaction)<br><br>
+  <label for="send_asset">Token:</label>
+  <select name="send_asset" id="send_asset"></select><br>
   <label for="send_qty">Quantity:</label>
   <input type="text" id="send_qty" name="send_qty" value="1.0000"> <br>
   <label for="send_from">From:</label>
