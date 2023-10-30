@@ -92,9 +92,6 @@ function openTab(evt, tabName) {
   if( tabName=="Configure" ) {
     setupConfigureTab();
   }
-  if( tabName=="Approve" ) {
-    setupApproveTab();
-  }
   if( tabName=="AddLiqPrep" ) {
     setupAddLiquidityTab();
   }
@@ -103,18 +100,6 @@ function openTab(evt, tabName) {
   }
   if( tabName=="PrepExchange" ) {
     setupPrepExchangeTab();
-  }
-  if( tabName=="Display" ) {
-    setupDisplayTab();
-  }
-  if( tabName=="Issue" ) {
-    setupIssueTab();
-  }
-  if( tabName=="Redeem" ) {
-    setupRedeemTab();
-  }
-  if( tabName=="Freeze" ) {
-    setupFreezeTab();
   }
   if( tabName=="TopUpRam" ) {
     setupRamTab();
@@ -175,18 +160,6 @@ function register_trx() {
     actions: actions
   }
   return transaction;
-}
-
-function setupApproveTab() {
-  getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      let visibility = "hidden";
-      if( data.rows.length != 0 && data.rows[0].approved) {
-        visibility = "visible";
-      }
-    document.getElementById("approved_in_table").style.visibility = visibility;
-    },
-    function(x,s,e) { } );
 }
 
 function addliq_trx() {
@@ -264,201 +237,6 @@ function updatePending() {
     function(x,s,e) { } );
 }
 
-function showAccountPermission(data) {
-  active_auth = data.permissions.find(function(row){return row.perm_name=="active";});
-  permission_exists = "undefined" != typeof( active_auth.required_auth.accounts.find(function(acct){
-    return acct.permission.actor==document.getElementById("contract_account").value
-           && acct.permission.permission=="eosio.code";}) );
-  if( permission_exists ) {
-    permission_status.innerHTML = "permission is present;";
-    permission_action.innerHTML = "remove code permission";
-  } else {
-    permission_status.innerHTML = "permission is not present;";
-    permission_action.innerHTML = "add code permission";
-  }
-}
-
-function display_trx() {
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "setdisplay",
-      data: {
-        symbolcode: document.getElementById("token_symbol").value,
-        json_meta: document.getElementById("display_json").value
-      },
-      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    return transaction;
-}
-
-function setupDisplayTab() {
-  document.getElementById("edit_display_json").checked = false;
-  document.getElementById("display_json").readOnly = true;
-  getRows("displays", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      let jd;
-      if( data.rows.length != 0 && data.rows[0].json_meta != "") {
-        document.getElementById("display_json").value = data.rows[0].json_meta;
-      } else {
-        document.getElementById("display_json").value =
-         '{"chain":"Telos", "symbol":"'+document.getElementById("token_symbol").value+'",' +
-         '"account":"'+document.getElementById("contract_account").value+'"}';
-      }
-      jd = JSON.parse(document.getElementById("display_json").value);
-      document.getElementById("token_name").value = jd.name;
-      document.getElementById("logo").value = jd.logo;
-      document.getElementById("logo_lg").value = jd.logo_lg;
-      document.getElementById("web_link").value = jd.web_link;
-      document.getElementById("background_img").value = jd.bg_image;
-      document.getElementById("balance_subtitle").value = jd.subtitle;
-    },
-    function(x,s,e) { } );
-  getSchema();
-}
-
-var validate;
-function getSchema() {
-  const url = chain_endpoint + "v1/chain/get_table_rows";
-  const data ={ code: "tmastr.seeds",
-                table: "schema",
-                scope: "tmastr.seeds",
-                limit: 1,
-                json: "true" };
-    $.ajax({
-      type: "POST",
-      url: url,
-      data: JSON.stringify(data),
-      contentType: "application/json; charset=utf-8",
-      dataType: "json",
-      success: function(data, status, jqXHR){
-        if( data.rows.length != 0 ) {
-          schema = JSON.parse(data.rows[0].schema);
-        }
-      console.log(schema);
-      validate = ajv.compile(schema); 
-      },
-
-      error: function(xhr, status, error) {
-        alert(xhr.responseText);
-      }
-    });
-}
-
-function issue_trx() {
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "issue",
-      data: {
-        quantity: (document.getElementById("issue_qty").value + " " +
-                   document.getElementById("token_symbol").value),
-        memo: document.getElementById("issue_memo").value
-      },
-      authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    return transaction;
-}
-
-function setupIssueTab() {  
-  getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
-        if( qtysplit.length == 1 ) {
-          document.getElementById("issue_qty").value = "1";
-        } else {
-          document.getElementById("issue_qty").value = `1.${qtysplit[1]}`; 
-        } 
-      }
-    },
-    function(x,s,e) { } );
-
-  document.getElementById("issue_memo").value = "";
-}
-
-function redeem_trx() {
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "retire",
-      data: {
-        owner: document.getElementById("redeem_from").value,
-        quantity: (document.getElementById("redeem_qty").value + " " +
-                   document.getElementById("token_symbol").value),
-        do_redeem: true,
-        memo: document.getElementById("redeem_memo").value
-      },
-      authorization: [{actor: document.getElementById("redeem_from").value, permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    return transaction;
-}
-
-function setupRedeemTab() {  
-  getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
-        if( qtysplit.length == 1 ) {
-          document.getElementById("redeem_qty").value = "1";
-        } else {
-          document.getElementById("redeem_qty").value = `1.${qtysplit[1]}`; 
-        } 
-      }
-    },
-    function(x,s,e) { } );
-
-  document.getElementById("redeem_from").value = "";
-  document.getElementById("redeem_memo").value = "";
-}
-
-function freeze_trx() {
-    let actions=[];
-    actions.push({
-      account: document.getElementById("contract_account").value, name: "freeze",
-      data: {
-        symbolcode: document.getElementById("token_symbol").value,
-        freeze: document.getElementById("freeze_checked").checked,
-        memo: document.getElementById("freeze_memo").value
-      },
-      authorization: [{actor: document.getElementById("freeze_account").value, permission: "active"}]
-    })
-
-    transaction =  {
-      actions: actions
-    }
-    return transaction;
-}
-function setupFreezeTab() {
-  getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      let visibility = "hidden";
-      if( data.rows.length != 0 && data.rows[0].transfers_frozen) {
-        visibility = "visible";
-      }
-      if( data.rows.length != 0 ) {
-        document.getElementById("freeze_account").value = data.rows[0].freeze_mgr;
-        if (data.rows[0].freeze_mgr !== "eosio.null") {
-          mgr_visibility = "visible";
-        } else {
-          mgr_visibility = "hidden";
-        }
-      }
-    document.getElementById("frozen_in_table").style.visibility = visibility;
-    document.getElementById("freezer").style.visibility = mgr_visibility;
-    },
-    function(x,s,e) { } );
-}
-
 function setupRamTab() {
   document.getElementById("seeds2telos_qty").value = "5.0000";
   document.getElementById("seeds2telos").checked = true;
@@ -514,89 +292,6 @@ function setupSendTab() {
   document.getElementById("send_memo").value = "";
 }
 
-function setupReviewStakesTab() {
-    getRows("backings", document.getElementById("token_symbol").value,
-            function(data, status, jqXHR) {
-              if( data.rows.length == 0 ) {
-                document.getElementById("stakeselector").style.display = "none";
-                document.getElementById("nostakes").style.display = "block";
-              } else {
-                $("#stakes").empty();
-                data["rows"].forEach(function(row) {
-                  $("<option/>").html(`${row.index} ${row.backs_per_bucket}`).appendTo("#stakes");
-                });
-                reviewOneStake(data);
-              }        
-            },
-            function(x,s,e) { 
-              document.getElementById("stakeselector").style.display = "none";
-              document.getElementById("nostakes").style.display = "block";
-            } );
-}
-
-function updateReviewStake() {
-  getRows("backings", document.getElementById("token_symbol").value,
-          function(data, status, jqXHR) {
-            reviewOneStake(data);
-          },
-          function(x,s,e) { 
-            document.getElementById("stakeselector").style.display = "none";
-            document.getElementById("nostakes").style.display = "block";
-          });
-}
-
-function reviewOneStake(data) {
-  if( data.rows.length == 0 ) {
-    document.getElementById("stakeselector").style.display = "none";
-    document.getElementById("nostakes").style.display = "block";
-    return;
-  }
-  document.getElementById("stakeselector").style.display = "block";
-  document.getElementById("nostakes").style.display = "none";
-  const selectedStake = document.getElementById("stakes").value;
-  const selectedIndex = selectedStake.split(" ")[0];
-  const selectedRow = data.rows.find(function(row){return row.index==selectedIndex;});
-  document.getElementById("r_bucket").value = selectedRow.token_bucket.split(" ")[0];
-  document.getElementById("r_staked").value = selectedRow.backs_per_bucket.split(" ")[0];
-  document.getElementById("r_stake_symbol").value = selectedRow.backs_per_bucket.split(" ")[1];
-  document.getElementById("r_stake_contract").value = selectedRow.backing_token_contract;
-  document.getElementById("r_stake_to").value = selectedRow.escrow;
-  document.getElementById("r_proportional").checked = selectedRow.proportional;
-  document.getElementById("r_fraction").value = selectedRow.reserve_fraction;
-}
-
-function updateIssuer() {
-  getRows("stat", document.getElementById("token_symbol").value,
-
-          function(data, status, jqXHR) {
-            if( data.rows.length != 0 ) {
-              document.getElementById("issuer_account").value = data.rows[0].issuer;
-            }
-          },
-          function(x,s,e) { 
-          });
-  
-}
-
-function updateDisplayJson() {
-  let jsonData = document.getElementById("display_json").value;
-  if( jsonData == "" ) {
-    jsonData = "{}";
-  }
-  try {
-    var obj = JSON.parse(jsonData);
-    obj.name = document.getElementById("token_name").value;
-    obj.logo = document.getElementById("logo").value;
-    obj.logo_lg = document.getElementById("logo_lg").value;
-    obj.web_link = document.getElementById("web_link").value;
-    obj.bg_image = document.getElementById("background_img").value;
-    obj.subtitle = document.getElementById("balance_subtitle").value;
-    document.getElementById("display_json").value = JSON.stringify(obj);
-  }
-  catch(err) {
-    console.log(err);
-  }
-}
 
 const esr_gen_base = "https://cc42.xyz";
 
@@ -825,87 +520,7 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-  
-  $('#permission_QR').click(function(){
-    const transaction = permission_trx();
-    console.log(transaction);
-    makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
-  });
-  $('#permission_msig_propose_QR').click(function(){
-    const transaction = permission_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
 
-  $('#display_QR').click(function(){
-    updateDisplayJson();
-    const transaction = display_trx();
-    console.log(transaction);
-    makeQR(transaction);
-  });
-  $('#display_msig_propose_QR').click(function(){
-    updateDisplayJson();
-    const transaction = display_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
-  $('#weblink_button').click(function(){
-    window.open(
-      document.getElementById("web_link").value,
-      '_blank'
-    );
-  });
-  $('#holders_button').click(function(){
-    if(document.getElementById("token_symbol").value != "") {
-      window.open(
-        `https://eosauthority.com/tokens/${document.getElementById("contract_account").value}/`+
-        `${document.getElementById("token_symbol").value}`+
-        `?network=telos`, // TODO: make this work for all networks
-        '_blank'
-      );
-    }
-  });
-  $('#validate_button').click(function(){
-    updateDisplayJson();
-    const valid = validate(JSON.parse(document.getElementById("display_json").value));
-    if(valid) {
-      alert("Passed validation");
-    } else {
-      const errs = validate.errors;
-      var complaints = "";
-      for( const e of errs ) {
-        complaints += "\n"+e.message;
-      }
-      alert(complaints);
-    }
-  });
-  $('#issue_QR').click(function(){
-    const transaction = issue_trx();
-    console.log(transaction);
-    makeQR(transaction);
-    // TBD: check blockchain for transaction posted, or timeout?
-  });
-  $('#issue_msig_propose_QR').click(function(){
-    const transaction = issue_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
-  $('#redeem_QR').click(function(){
-    const transaction = redeem_trx();
-    console.log(transaction);
-    makeQR(transaction);
-  });
-  $('#redeem_msig_propose_QR').click(function(){
-    const transaction = redeem_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
-  $('#freeze_QR').click(function(){
-    const transaction = freeze_trx();
-    console.log(transaction);
-    makeQR(transaction);
-  });
-  $('#freeze_msig_propose_QR').click(function(){
-    const transaction = freeze_trx();
-    makeMsigProposeQR_step1(transaction);
-  });
   $('#ram_QR').click(function(){
     let actions=[];
     if( document.getElementById("seeds2telos").checked ) {
@@ -958,34 +573,12 @@ $(document).ready(function () {
     makeMsigProposeQR_step1(transaction);
   });
   
-  $('#stakes').change(function(){
-    updateReviewStake();
-    clearQR();
-  });
-  $('#staking_accts').change(function(){
-    updatePermissions();
-    clearQR();
-  });
-  $('#token_symbol').change(function(){
-    openTab(null, null);
-    updateIssuer();
-  });  
-  $('#edit_display_json').change(function(){
-    document.getElementById("display_json").readOnly = 
-      !document.getElementById("edit_display_json").checked;
-    updateDisplayJson();
-  });  
-
   $('input').change(function(){
     clearQR();
   });
   $('textarea').change(function(){
     clearQR();
   });
-  $('#display_json').click(function(){
-    updateDisplayJson();
-  });   
-
  
 });
 </script>
@@ -1209,88 +802,6 @@ label {
   </div>
 </div>
 
-<div id="Display" class="tabcontent" style="background-color:Beige;">
-  <h3>Set token display information</h3>
-  <label for="token_name">Short name:</label>
-  <input type="text" id="token_name" name="token_name" value="My new token"> <br>
-  <label for="logo">Logo url:</label>
-  <input type="text" id="logo" name="logo" value=""> <br>
-  <label for="logo_lg">Logo-large url:</label>
-  <input type="text" id="logo_lg" name="logo_lg" value=""> <br>
-  <label for="web_link">Web link url:</label>
-  <input type="text" id="web_link" name="web_link" value="">
-  <input type="button" id="weblink_button" value="Visit weblink" class="button">
-  <br>
-  <label for="background_img">Background img url:</label>
-  <input type="text" id="background_img" name="background_img" value=""> <br>
-  <label for="balance_subtitle">Balance subtitle:</label>
-  <input type="text" id="balance_subtitle" name="balance_subtitle" value=""> <br>
-  <p>
-  <label for="edit_display_json">edit other json fields:</label>
-  <input type="checkbox" id="edit_display_json" > <br>
-  <label for="display_json">JSON data:</label>
-  <textarea rows="4" id="display_json" name="display_json" readonly
-           value="{}" style="vertical-align:middle;"> </textarea>
-  <input type="button" id="validate_button" value="Validate JSON" class="button"> <br>
-  </p>
-  <div id="button-wrapper">
-    <input type="button" id="display_QR" value="Create QR" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="display_msig_propose_QR" value="Propose Msig QR" class="button">
-  </div>
-</div>
-
-<div id="Issue" class="tabcontent" style="background-color:Beige;">
-  <h3>Issue tokens</h3>
-  <label for="issue_qty">Quantity:</label>
-  <input type="text" id="issue_qty" name="issue_qty" value="1.0000"> <br>
-  <label for="issue_memo">Memo:</label>
-  <textarea rows="2" id="issue_memo" name="issue_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
-  <div id="button-wrapper">
-    <input type="button" id="issue_QR" value="Create QR" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="issue_msig_propose_QR" value="Propose Msig QR" class="button">
-  </div>
-</div>
-
-<div id="Redeem" class="tabcontent" style="background-color:Beige;">
-  <h3>Redeem tokens</h3>
-  <label for="redeem_from">Reedem from:</label>
-  <input type="text" id="redeem_from" name="redeem_from" value=""> <br>
-  <label for="redeem_qty">Quantity:</label>
-  <input type="text" id="redeem_qty" name="redeem_qty" value="1.0000"> <br>
-  <label for="redeem_memo">Memo:</label>
-  <textarea rows="2" id="redeem_memo" name="redeem_memo" value="" style="vertical-align:middle;"> </textarea> 
-  <input type="button" id="holders_button" value="Show token holders" class="button"> <br><br>
-    <div id="button-wrapper">
-    <input type="button" id="redeem_QR" value="Create QR" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="redeem_msig_propose_QR" value="Propose Msig QR" class="button">
-  </div>
-</div>
-
-<div id="Freeze" class="tabcontent" style="background-color:Beige;">
-  <h3>Freeze token transfers</h3>
-  <p>
-  <div id="freezer" style="visibility:hidden;">
-    <label for="freeze_account">Freeze manager:</label>
-    <input type="text" id="freeze_account" name="freeze_account" value=""> <br>
-  </div>
-  <div id="frozen_in_table" style="visibility:hidden;">This token is already frozen on-chain.</div>
-  <label for="freeze_checked">Freeze:</label>
-  <input type="radio" id="freeze_checked" name="freezing" value="frozen" checked>
-  <label for="unfreeze_checked" class="radiolabelhoriz">Unfreeze:</label>
-  <input type="radio" id="unfreeze_checked" name="freezing" value="unfrozen"> <br>
-  </p>
-
-  <label for="freeze_memo">Memo:</label>
-  <textarea rows="2" id="freeze_memo" name="freeze_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
-  <div id="button-wrapper">
-    <input type="button" id="freeze_QR" value="Create QR" class="button">
-    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="freeze_msig_propose_QR" value="Propose Msig QR" class="button">
-  </div>
-</div>
 
 <div id="TopUpRam" class="tabcontent" style="background-color:Beige;">
   <h3>Add RAM to issuer account</h3>
