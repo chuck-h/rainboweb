@@ -36,6 +36,18 @@ function offsetDateHTML(isoDate) {
     second: "2-digit"}).replace(" ", "T");
 }
 
+var manager;
+function getManager() {
+  getRows("configs", document.getElementById("contract_account").value, 
+    function(data, status, jqXHR){
+      configured = data.rows.length != 0;
+      if( configured ) {
+        manager = data.rows[0].manager;
+      }
+    },
+    function(x,s,e) { } );
+}
+
 const asset_selector_ids = [
   "withdraw_asset",
   "input_asset",
@@ -135,14 +147,20 @@ function openTab(evt, tabName) {
   if( tabName=="Configure" ) {
     setupConfigureTab();
   }
+  if( tabName=="RegisterAsset") {
+    setupRegisterAssetTab();
+  }
   if( tabName=="AddLiqPrep" ) {
     setupAddLiquidityTab();
+  }
+  if( tabName=="PrepExchange" ) {
+    setupPrepExchangeTab();
   }
   if( tabName=="WithdrawLiquidity" ) {
     setupWithdrawLiquidityTab();
   }
-  if( tabName=="PrepExchange" ) {
-    setupPrepExchangeTab();
+  if( tabName=="UnregisterAsset") {
+    setupUnregisterTab();
   }
   if( tabName=="TopUpRam" ) {
     setupRamTab();
@@ -183,6 +201,10 @@ function config_trx() {
   return transaction;
 }  
 
+function setupRegisterAssetTab() {  
+  document.getElementById("registrant").value = document.getElementById("current_user").value
+}
+
 function register_trx() {
   const actor = document.getElementById("registrant").value;
   let actions=[];
@@ -205,6 +227,11 @@ function register_trx() {
   return transaction;
 }
 
+function setupAddLiquidityTab() {  
+  getAssets()
+  document.getElementById("liq_source").value = document.getElementById("current_user").value
+}
+
 function addliq_trx() {
     let actions=[];
     actions.push({
@@ -215,7 +242,7 @@ function addliq_trx() {
         amount: document.getElementById("add_amount").value,
         weight: (document.getElementById("add_weight").value.toString()),
       },
-      authorization: [{actor: "............1", permission: "............2"}]
+      authorization: [{actor: document.getElementById("liq_source").value, permission: "active"}]
     })
 
     transaction =  {
@@ -224,16 +251,9 @@ function addliq_trx() {
     return transaction;
 }
 
-function setupAddLiquidityTab() {  
-  getAssets()
-}
-
-function setupWithdrawLiquidityTab() {  
-  getAssets()
-}
-
 function setupPrepExchangeTab() {  
   getAssets()
+  document.getElementById("exch_sender").value = document.getElementById("current_user").value
 }
 
 function prepExchange_trx() {
@@ -280,6 +300,53 @@ function updatePending() {
     function(x,s,e) { } );
 }
 
+function setupWithdrawLiquidityTab() {  
+  getAssets()
+  getManager()
+  document.getElementById("liq_recip").value = document.getElementById("current_user").value
+}
+
+function withdrawliq_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "withdraw",
+      data: {
+        account: document.getElementById("liq_recip").value,
+        token_id: document.getElementById("withdraw_asset").value.slice(-1), // TODO handle n>9
+        amount: document.getElementById("withdraw_amount").value,
+        weight: (document.getElementById("withdraw_weight").value.toString()),
+      },
+      authorization: [{actor: manager, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
+function setupUnregisterTab() {
+  getAssets();
+  getManager();
+}
+function unregister_trx() {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "forgetasset",
+      data: {
+        actor: manager,
+        token_id: document.getElementById("forget_asset").value.slice(-1), // TODO handle n>9
+        memo: "",
+      },
+      authorization: [{actor: manager, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
 function setupRamTab() {
   document.getElementById("seeds2telos_qty").value = "5.0000";
   document.getElementById("seeds2telos").checked = true;
@@ -287,8 +354,7 @@ function setupRamTab() {
   document.getElementById("ram_recipient").value = document.getElementById("contract_account").value;
 }
 
-var withdraw;
-function send_trx(actor) {
+function send_trx() {
     let actions=[];
     const toke = document.getElementById("send_asset").value.split(/\s+/)
     console.log(toke);
@@ -300,7 +366,7 @@ function send_trx(actor) {
         to: document.getElementById("send_to").value,
         memo: document.getElementById("send_memo").value
       },
-      authorization: [{actor: actor, permission: "active"}]
+      authorization: [{actor: document.getElementById("send_from").value, permission: "active"}]
     })
 
     transaction =  {
@@ -375,7 +441,7 @@ function genProposalName() {
     }
     return name;
 }
-function makeMsigProposeQR_step1(transaction) {
+function makeMsigProposeQR_step1(transaction, erroraction=null) {
     // get account/permission signatories from chain
     const account = transaction.actions[0].authorization[0].actor;
     const permission = transaction.actions[0].authorization[0].permission;
@@ -555,6 +621,26 @@ $(document).ready(function () {
     // TBD: check blockchain for transaction posted, or timeout?
   });
 
+  $('#withdraw_liq_QR').click(function(){
+    const transaction = withdrawliq_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#withdraw_liq_msig_propose_QR').click(function(){
+    const transaction = withdrawliq_trx();
+    makeMsigProposeQR_step1(transaction);
+  });
+
+  $('#unregister_QR').click(function(){
+    const transaction = unregister_trx();
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#unregister_msig_propose_QR').click(function(){
+    const transaction = unregister_trx();
+    makeMsigProposeQR_step1(transaction);
+  });
+
   $('#ram_QR').click(function(){
     let actions=[];
     if( document.getElementById("seeds2telos").checked ) {
@@ -592,18 +678,12 @@ $(document).ready(function () {
   });
 
   $('#send_QR').click(function(){
-    const transaction = send_trx("............1");
+    const transaction = send_trx();
     console.log(transaction);
     makeQR(transaction);
   });
   $('#send_msig_propose_QR').click(function(){
-    var actor; 
-    if ( document.getElementById("send_to").value == withdraw ) {
-      actor = withdraw;
-    } else {
-      actor = document.getElementById("send_from").value;
-    }
-    const transaction = send_trx(actor);
+    const transaction = send_trx();
     makeMsigProposeQR_step1(transaction);
   });
   
@@ -698,6 +778,10 @@ label {
   <label for="contract_account" >Master Contract:</label>
   <input id="contract_account"></input> <br>
   </p>
+  <p>
+  <label for="current_user" >Current user:</label>
+  <input id="current_user"></input> <br>
+  </p>
 </div>
 
 <div class="tab">
@@ -781,9 +865,9 @@ label {
   <input type="text" id="withdraw_weight" name="withdraw_weight" value=""> <br>
   <br>
   <div id="button-wrapper">
-    <input type="button" id="add_liq_QR" value="Create QR" class="button">
+    <input type="button" id="withdraw_liq_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-    <input type="button" id="add_liq_msig_propose_QR" value="Propose Msig QR" class="button">
+    <input type="button" id="withdraw_liq_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 
 </div>
@@ -829,9 +913,9 @@ label {
     <br>
     
     <div id="button-wrapper">
-      <input type="button" id="permission_QR" value="Create QR" class="button">
+      <input type="button" id="unregister_QR" value="Create QR" class="button">
       <input type="button" value="Clear QR" onclick="clearQR()" class="button">
-      <input type="button" id="permission_msig_propose_QR" value="Propose Msig QR" class="button">
+      <input type="button" id="unregister_msig_propose_QR" value="Propose Msig QR" class="button">
           </div>
   </div>
 </div>
