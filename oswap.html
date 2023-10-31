@@ -63,7 +63,7 @@ function setAssetDatalist(data, status, jqXHR) {
                               ((a.contract_name > b.contract_name) ? 1 :
                                ((b.contract_name > a.contract_name) ? -1 : 0))))
     .forEach(function(row) {
-       console.log(row)
+       //console.log(row)
        const option_string = `${row.symbol.padEnd(7,' ')} ${
                                 row.contract_name.padEnd(13,' ')} id:${row.token_id}`
       asset_selector_ids.forEach( (id) => {
@@ -72,7 +72,50 @@ function setAssetDatalist(data, status, jqXHR) {
       })
   });
 }
-  
+
+function getLiqQueue() {
+  document.getElementById("liqqueue").options.length=0
+  getRows("adpreps", document.getElementById("contract_account").value,
+    function(data, status, jqXHR){
+      setLiqQueueList(data, status, jqXHR)
+    },
+    function(x,s,e) { } );
+}
+function setLiqQueueList(data, status, jqXHR) {
+  data["rows"].sort((a,b) => (a.nonce - b.nonce))
+    .forEach(function(row) {
+       //console.log(row)
+       minutes_remaining = (Date.parse(row.expires+"Z") - Date.now())/60000
+       const option_string = row.nonce.toString() + " " + row.amount.toString() +
+            " from " + row.account.toString() + ((minutes_remaining < 0) ? " EXPIRED" : "")
+       sel = document.getElementById("liqqueue")
+       sel.options[sel.options.length] = new Option(option_string, option_string)
+
+  });
+}
+
+function getExchgQueue() {
+  document.getElementById("exchgqueue").options.length=0
+  getRows("expreps", document.getElementById("contract_account").value,
+    function(data, status, jqXHR){
+      setExchgQueueList(data, status, jqXHR)
+    },
+    function(x,s,e) { } );
+}
+function setExchgQueueList(data, status, jqXHR) {
+  data["rows"].sort((a,b) => (a.nonce - b.nonce))
+    .forEach(function(row) {
+       console.log(row)
+       minutes_remaining = (Date.parse(row.expires+"Z") - Date.now())/60000
+       const option_string = row.nonce.toString() + " " +
+                                row.in_amount.toString() + " from " + row.sender.toString() +
+                                " to " +row.recipient.toString() + ((minutes_remaining < 0) ? " EXPIRED" : "")
+       sel = document.getElementById("exchgqueue")
+       sel.options[sel.options.length] = new Option(option_string, option_string)
+
+  });
+}
+
 
 function openTab(evt, tabName) {
   var i, tabcontent, tablinks;
@@ -241,7 +284,7 @@ function setupRamTab() {
   document.getElementById("seeds2telos_qty").value = "5.0000";
   document.getElementById("seeds2telos").checked = true;
   document.getElementById("buyram").checked = true;
-  document.getElementById("buyramfor").innerHTML = "for "+document.getElementById("issuer_account").value;
+  document.getElementById("ram_recipient").value = document.getElementById("contract_account").value;
 }
 
 var withdraw;
@@ -286,6 +329,8 @@ function updateSendTab() {
 
 function setupSendTab() {
   getAssets();
+  getLiqQueue();
+  getExchgQueue();
   updateSendTab(); // TODO make update execute after asset list has been loaded.
   document.getElementById("send_from").value = "";
   document.getElementById("send_to").value = document.getElementById("contract_account").value;
@@ -428,17 +473,6 @@ function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
     });
 }
 
-function setTokenDatalist(data, status, jqXHR) {
-  $("#tokens").empty();
-  data["rows"].sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
-                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
-    .forEach(function(row) {
-      $("<option/>").html(row.symbolcode).appendTo("#tokens");
-  });
-}
-function emptyTokenDatalist(x,s,e) {
-  $("#tokens").empty();
-}
 function getRows(table, scope, action, erroraction=null, code=null) {
   const url = chain_endpoint + "v1/chain/get_table_rows";
   const code_was_null = (code==null);
@@ -541,7 +575,7 @@ $(document).ready(function () {
         data: {
           bytes: 1000,
           payer: "............1",
-          receiver: document.getElementById("issuer_account").value,
+          receiver: document.getElementById("ram_recipient").value,
         },
         authorization: [{actor: "............1", permission: "active"}]
       })
@@ -804,7 +838,7 @@ label {
 
 
 <div id="TopUpRam" class="tabcontent" style="background-color:Beige;">
-  <h3>Add RAM to issuer account</h3>
+  <h3>Add RAM to contract account</h3>
 (Use this if you get an "insufficient RAM" error)<br><br>
   <p>
   This 2-step transaction uses Tswaps to convert SEEDS to TLOS, then uses the TLOS to buy RAM for the Issuer account
@@ -816,7 +850,9 @@ label {
   <label for="seeds2telos_qty">SEEDS:</label>
   <input type="text" id="seeds2telos_qty" name="seeds2telos_qty"> <br>
   <label for="buyram">Buy 1K of RAM</label>
-  <input type="checkbox" id="buyram" > <br> <label id="buyramfor"></label>
+  <input type="checkbox" id="buyram" > <br>
+  <label for="ram_recipient">For:</label>
+  <input type="text" id="ram_recipient" name="ram_recipient" value=""> <br>
   <br><br>
   <div id="button-wrapper">
     <input type="button" id="ram_QR" value="Create QR" class="button">
@@ -826,6 +862,10 @@ label {
 
 <div id="Send" class="tabcontent" style="background-color:Beige;">
   <h3>Send tokens</h3>
+  <label for="liqqueue">Pending liq adds:</label>
+  <select name="liqqueue" id="liqqueue"></select><br><br>
+  <label for="exchgqueue">Pending swaps:</label>
+  <select name="exchgqueue" id="exchgqueue"></select><br><br>
 (An ordinary wallet transaction)<br><br>
   <label for="send_asset">Token:</label>
   <select name="send_asset" id="send_asset"></select><br>
