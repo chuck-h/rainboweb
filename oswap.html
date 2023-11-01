@@ -85,6 +85,11 @@ function setAssetDatalist(data, status, jqXHR) {
   });
 }
 
+function assetId(target) {
+  const toke = document.getElementById(target).value
+  return toke.slice(toke.lastIndexOf(":")+1)
+}
+  
 function getLiqQueue() {
   document.getElementById("liqqueue").options.length=0
   getRows("adpreps", document.getElementById("contract_account").value,
@@ -117,7 +122,7 @@ function getExchgQueue() {
 function setExchgQueueList(data, status, jqXHR) {
   data["rows"].sort((a,b) => (a.nonce - b.nonce))
     .forEach(function(row) {
-       console.log(row)
+       //console.log(row)
        minutes_remaining = (Date.parse(row.expires+"Z") - Date.now())/60000
        const option_string = row.nonce.toString() + " " +
                                 row.in_amount.toString() + " from " + row.sender.toString() +
@@ -128,6 +133,25 @@ function setExchgQueueList(data, status, jqXHR) {
   });
 }
 
+function normalizeAmount(qty, contract, symbol, target) {
+  getRows("stat", symbol, 
+    function(data, status, jqXHR){
+      if( data.rows.length != 0 ) {
+        const max_supply = data.rows[0].max_supply ?? data.rows[0].initial_supply; // token.seeds quirk
+        let qtysplit = max_supply.split(" ")[0].split(".");
+        var precision
+        if( qtysplit.length == 1 ) {
+          precision = 0;
+        } else {
+          precision = qtysplit[1].length
+        }
+        document.getElementById(target).value = Number(qty).toFixed(precision) + ` ${symbol}`; 
+      }
+    },
+    function(x,s,e) { },
+    contract
+  )
+}
 
 function openTab(evt, tabName) {
   var i, tabcontent, tablinks;
@@ -238,7 +262,7 @@ function addliq_trx() {
       account: document.getElementById("contract_account").value, name: "addliqprep",
       data: {
         account: document.getElementById("liq_source").value,
-        token_id: document.getElementById("add_asset").value.slice(-1), // TODO handle n>9
+        token_id: assetId("add_asset"),
         amount: document.getElementById("add_amount").value,
         weight: (document.getElementById("add_weight").value.toString()),
       },
@@ -256,17 +280,76 @@ function setupPrepExchangeTab() {
   document.getElementById("exch_sender").value = document.getElementById("current_user").value
 }
 
+function updatePrepExchangeTab() {
+  // balancer computation 
+  // for controlling asset, compute LC = ln(new/old)
+  // for noncontrolling asset compute LNC = - WC/WNC * LC
+  // for noncontrolling compute new = old * exp(LNC)
+  const in_token_id = assetId("input_asset")
+  const out_token_id = assetId("output_asset")
+  getRows("assetsa", document.getElementById("contract_account").value, 
+    function(data, status, jqXHR){
+      const in_asset = data.rows.find((r) => r.token_id==in_token_id)
+      const out_asset = data.rows.find((r) => r.token_id==out_token_id)
+      getRows("accounts", document.getElementById("contract_account").value,
+        function(data, status, jqXHR){
+          in_bal_before = Number(data.rows.find((r) => r.balance.split(/\s+/)[1]==in_asset.symbol).balance.split(/\s+/)[0])
+          getRows("accounts", document.getElementById("contract_account").value,
+            function(data, status, jqXHR){
+              const out_bal_before = Number(data.rows.find((r) => r.balance.split(/\s+/)[1]==out_asset.symbol).balance.split(/\s+/)[0])
+              // balancer computation
+              if (document.getElementById("in_exact_checked").checked) {
+                const in_bal_after = in_bal_before + Number(document.getElementById("input_amt").value.split(/\s+/)[0]);
+                const lc = Math.log(in_bal_after/in_bal_before);
+                const lnc = -(in_asset.weight/out_asset.weight * lc);
+                const out_bal_after = out_bal_before * Math.exp(lnc);
+                document.getElementById("computed_out").value = (out_bal_before - out_bal_after).toFixed(6);
+                document.getElementById("computed_in").value = (in_bal_after - in_bal_before).toFixed(6);
+                console.log(`in before ${in_bal_before}, after ${in_bal_after}, lc ${lc}, lnc ${
+                  lnc}, out before ${out_bal_before}, after ${out_bal_after}`)
+
+              } else {
+                const out_bal_after = out_bal_before - Number(document.getElementById("output_amt").value.split(/\s+/)[0]);
+                if(out_bal_after < 0) {
+                  console.log(`outbal negative ${out_bal_after}`)
+                } else {
+                  const lc = Math.log(out_bal_after/out_bal_before);
+                  const lnc = -(out_asset.weight/in_asset.weight * lc);
+                  const in_bal_after = in_bal_before * Math.exp(lnc);
+                  document.getElementById("computed_in").value = (in_bal_after - in_bal_before).toFixed(6);
+                  document.getElementById("computed_out").value =(out_bal_before - out_bal_after).toFixed(6);
+                  console.log(`in before ${in_bal_before}, after ${in_bal_after}, lc ${lc}, lnc ${
+                    lnc}, out before ${out_bal_before}, after ${out_bal_after}`)
+                }
+              }
+            },
+            function(x,s,e) {
+              alert(x.responseText)
+            },
+            out_asset.contract_name
+          )
+        },
+        function(x,s,e) {
+          alert(x.responseText)
+        },
+        in_asset.contract_name
+      )},
+    function(x,s,e) {
+      alert(x.responseText)
+    })
+}
+
 function prepExchange_trx() {
-    const mods = document.getElementById("in_exact_checked").value ? '{"exact": "in"}' : '{"exact": "out"}';
+    const mods = document.getElementById("in_exact_checked").checked ? '{"exact": "in"}' : '{"exact": "out"}';
     let actions=[];
     actions.push({
       account: document.getElementById("contract_account").value, name: "exchangeprep",
       data: {
         sender: document.getElementById("exch_sender").value,
-        in_token_id: document.getElementById("input_asset").value.slice(-1), // TODO handle n>9
+        in_token_id: assetId("input_asset"),
         in_amount: document.getElementById("input_amt").value,
         recipient: document.getElementById("exch_recip").value,
-        out_token_id: document.getElementById("output_asset").value.slice(-1),
+        out_token_id: assetId("output_asset"),
         out_amount: document.getElementById("output_amt").value,
         mods: mods,
         memo: ""
@@ -277,27 +360,6 @@ function prepExchange_trx() {
       actions: actions
     }
     return transaction;
-}
-
-var pendingExch;
-var pendingAdd;
-function updatePending() {
-  getRows("expreps", document.getElementById("contract_account").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        pendingExch = data["rows"].sorted((a,b) => (a.expires > b.expires) ? 1 : 
-                         ((b.expires > a.expires) ? -1 : 0))
-      }
-    },
-    function(x,s,e) { } );
-  getRows("addprep", document.getElementById("contract_account").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        pendingAdd = data["rows"].sorted((a,b) => (a.expires > b.expires) ? 1 : 
-                         ((b.expires > a.expires) ? -1 : 0))
-      }
-    },
-    function(x,s,e) { } );
 }
 
 function setupWithdrawLiquidityTab() {  
@@ -312,7 +374,7 @@ function withdrawliq_trx() {
       account: document.getElementById("contract_account").value, name: "withdraw",
       data: {
         account: document.getElementById("liq_recip").value,
-        token_id: document.getElementById("withdraw_asset").value.slice(-1), // TODO handle n>9
+        token_id: assetId("withdraw_asset"),
         amount: document.getElementById("withdraw_amount").value,
         weight: (document.getElementById("withdraw_weight").value.toString()),
       },
@@ -335,7 +397,7 @@ function unregister_trx() {
       account: document.getElementById("contract_account").value, name: "forgetasset",
       data: {
         actor: manager,
-        token_id: document.getElementById("forget_asset").value.slice(-1), // TODO handle n>9
+        token_id: assetId("forget_asset"),
         memo: "",
       },
       authorization: [{actor: manager, permission: "active"}]
@@ -376,21 +438,7 @@ function send_trx() {
 }
 
 function updateSendTab() {
-  const toke = document.getElementById("send_asset").value.split(/\s+/)
-  getRows("stat", toke[0], 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        const max_supply = data.rows[0].max_supply ?? data.rows[0].initial_supply; // token.seeds quirk
-        let qtysplit = max_supply.split(" ")[0].split(".");
-        if( qtysplit.length == 1 ) {
-          document.getElementById("send_qty").value = "1";
-        } else {
-          document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
-        }
-      }
-    },
-    function(x,s,e) { },
-    toke[1] );
+ // dummy
 }
 
 function setupSendTab() {
@@ -398,7 +446,7 @@ function setupSendTab() {
   getLiqQueue();
   getExchgQueue();
   updateSendTab(); // TODO make update execute after asset list has been loaded.
-  document.getElementById("send_from").value = "";
+  document.getElementById("send_from").value = document.getElementById("current_user").value;
   document.getElementById("send_to").value = document.getElementById("contract_account").value;
   document.getElementById("send_memo").value = "";
 }
@@ -551,7 +599,7 @@ function getRows(table, scope, action, erroraction=null, code=null) {
                 limit: 40,
                 json: "true" };
   if (!code_was_null) {
-    console.log("getRows "+JSON.stringify(data));
+    //console.log("getRows "+JSON.stringify(data));
   }           
     $.ajax({
       type: "POST",
@@ -620,6 +668,13 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
+  $('#in_exact_checked').click(function(){
+    updatePrepExchangeTab();
+  });
+  $('#out_exact_checked').click(function(){
+    updatePrepExchangeTab();
+  });
+  
 
   $('#withdraw_liq_QR').click(function(){
     const transaction = withdrawliq_trx();
@@ -685,6 +740,81 @@ $(document).ready(function () {
   $('#send_msig_propose_QR').click(function(){
     const transaction = send_trx();
     makeMsigProposeQR_step1(transaction);
+  });
+  $('#copy_liq').click(function(){
+    const nonce = document.getElementById("liqqueue").value.split(/\s+/)[0]
+    const url = chain_endpoint + "v1/chain/get_table_rows";
+    const data ={ code: document.getElementById("contract_account").value,
+                table: "adpreps",
+                scope: document.getElementById("contract_account").value,
+                limit: 1,
+                lower_bound: nonce,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR){
+        if( data.rows.length != 0 ) {
+          const token_id = data.rows[0].token_id;
+          const sel = document.getElementById("send_asset")
+          for (var i=0, n=sel.options.length; i<n; ++i) {
+            if (sel.options[i].value.endsWith(`:${token_id}`)) {
+              sel.value = sel.options[i].value
+              break
+            }
+          }
+          document.getElementById("send_from").value = data.rows[0].account
+          document.getElementById("send_memo").value += ` ${nonce}`
+          const toke = document.getElementById("send_asset").value.split(/\s+/)
+          normalizeAmount(data.rows[0].amount.split(/\s+/)[0], toke[1], toke[0], "send_qty")
+        }
+      },
+      error: function(xhr, status, error) {
+        alert(xhr.responseText);
+      }
+    });
+
+  });
+  $('#copy_exch').click(function(){
+    const nonce = document.getElementById("exchgqueue").value.split(/\s+/)[0]
+    const url = chain_endpoint + "v1/chain/get_table_rows";
+    const data ={ code: document.getElementById("contract_account").value,
+                table: "expreps",
+                scope: document.getElementById("contract_account").value,
+                limit: 1,
+                lower_bound: nonce,
+                json: "true" };
+    $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
+      success: function(data, status, jqXHR){
+        if( data.rows.length != 0 ) {
+          const token_id = data.rows[0].token_id;
+          const sel = document.getElementById("send_asset")
+          for (var i=0, n=sel.options.length; i<n; ++i) {
+            if (sel.options[i].value.endsWith(`:${token_id}`)) {
+              sel.value = sel.options[i].value
+              break
+            }
+          }
+          document.getElementById("send_from").value = data.rows[0].sender
+          document.getElementById("send_memo").value += ` ${nonce}`
+          const toke = document.getElementById("send_asset").value.split(/\s+/)
+          console.log(data.rows[0].in_amount.split(/\s+/)[0])
+          normalizeAmount(data.rows[0].in_amount.split(/\s+/)[0], toke[1], toke[0], "send_qty")
+        }
+      },
+      error: function(xhr, status, error) {
+        alert(xhr.responseText);
+      }
+    });
+
   });
   
   $('input').change(function(){
@@ -845,6 +975,8 @@ label {
   <label for="add_weight">Weighting:</label>
   <input type="text" id="add_weight" name="add_weight" value=""> <br>
   <br>
+  <p> Notice: This is a proof-of-concept service with limitations. Liquidity providers will receive non-transferable receipt tokens (LIQA, LIQB, ...) but redemption of these tokens is subject to central control and is dependent on pool balances. There is no "staking return" or reward for providing liquidity.
+  </p>
   <div id="button-wrapper">
     <input type="button" id="add_liq_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
@@ -864,6 +996,8 @@ label {
   <label for="withdraw_weight">Weighting:</label>
   <input type="text" id="withdraw_weight" name="withdraw_weight" value=""> <br>
   <br>
+  <p> Notice: This is a proof-of-concept service with limitations. Liquidity withdrawal (redemption of receipt tokens) is subject to central control and is dependent on pool balances.
+  </p>
   <div id="button-wrapper">
     <input type="button" id="withdraw_liq_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
@@ -879,17 +1013,23 @@ label {
     <label for="exch_sender">Sender:</label>
     <input type="text" id="exch_sender" name="exch_sender" value=""> <br>
     <label for="input_asset">Input token:</label>
-    <select name="input_asset" id="input_asset"></select><br>
+    <select name="input_asset" id="input_asset"></select>
+    &emsp;computed quantity<br>
     <label for="input_amt">Token quantity:</label>
-    <input type="text" id="input_amt" name="input_amt" value=""> <br>
-    </p>
-    <p>
+    <input type="text" id="input_amt" name="input_amt" value=""> 
+    <input type="text" id="computed_in" name="computed_in" disabled> 
+    <br><br>
+something
+    <br>
     <label for="exch_recip">Recipient:</label>
     <input type="text" id="exch_recip" name="exch_recip" value=""> <br>
     <label for="output_asset">Output token:</label>
-    <select name="output_asset" id="output_asset"></select><br>
+    <select name="output_asset" id="output_asset"></select>
+    &emsp;computed quantity<br>
     <label for="output_amt">Token quantity:</label>
-    <input type="text" id="output_amt" name="output_amt" value=""> <br>
+    <input type="text" id="output_amt" name="output_amt" value=""> 
+    <input type="text" id="computed_out" name="computed_out" disabled> 
+    <br>
     </p>
     <p>
     <label for="in_exact">Input is exact:</label>
@@ -946,11 +1086,14 @@ label {
 
 <div id="Send" class="tabcontent" style="background-color:Beige;">
   <h3>Send tokens</h3>
-  <label for="liqqueue">Pending liq adds:</label>
+Pending actions in queue<br><br>
+  <label for="liqqueue">Liquidity addition:</label>
+  <input type="button" id="copy_liq" value="&#x21a7;" class="button">
   <select name="liqqueue" id="liqqueue"></select><br><br>
-  <label for="exchgqueue">Pending swaps:</label>
+  <label for="exchgqueue">Currency exchange:</label>
+  <input type="button" id="copy_exch" value="&#x21a7;" class="button">
   <select name="exchgqueue" id="exchgqueue"></select><br><br>
-(An ordinary wallet transaction)<br><br>
+Token transfer transaction<br><br>
   <label for="send_asset">Token:</label>
   <select name="send_asset" id="send_asset"></select><br>
   <label for="send_qty">Quantity:</label>
