@@ -255,7 +255,7 @@ function setupAddBackingTab() {
 }
 
 function permission_trx() {
-    const backing_acct = document.getElementById("staking_accts").value;
+    const backing_acct = document.getElementById("permissioned_accounts").value;
     let actions=[];
     var auth_object = JSON.parse(JSON.stringify(active_auth.required_auth));
     auth_object.parent = active_auth.parent;
@@ -292,22 +292,32 @@ function permission_trx() {
 }
 
 function setupPermissionsTab() {
-    getRows("backings", document.getElementById("token_symbol").value,
-            function(data, status, jqXHR) {
-              $("#staking_accts").empty();
-              const accts = new Set();
-              accts.add(document.getElementById("issuer_account").value);
-              data.rows.map( function(row) { accts.add(row.escrow); } );
-              accts.forEach(function(acct) {
-                $("<option/>").html(`${acct}`).appendTo("#staking_accts");
-              });
-              updatePermissions();       
-            });
+    $("#permissioned_accounts").empty();
+    const accts = new Set();
+    getRows("configs", document.getElementById("token_symbol").value, 
+      function(data, status, jqXHR){
+        const wm = data.rows[0].withdrawal_mgr;
+        if (wm !== "eosio.null") {
+          accts.add(wm);
+        }
+        getRows("backings", document.getElementById("token_symbol").value,
+                function(data, status, jqXHR) {
+                  if (data.rows.length != 0) {
+                    accts.add(document.getElementById("issuer_account").value);
+                    data.rows.map( function(row) { accts.add(row.escrow); } );
+                  }
+                  accts.forEach(function(acct) {
+                    $("<option/>").html(`${acct}`).appendTo("#permissioned_accounts");
+                  });
+                  updatePermissions();       
+                });
+      },
+      function(x,s,e) { } );
 }
 
 function updatePermissions() {
   const url = chain_endpoint + "v1/chain/get_account";
-  const data ={ account_name: document.getElementById("staking_accts").value,
+  const data ={ account_name: document.getElementById("permissioned_accounts").value,
                 json: "true" };
     $.ajax({
       type: "POST",
@@ -898,7 +908,7 @@ $(document).ready(function () {
   });
   $('#permission_msig_propose_QR').click(function(){
     const transaction = permission_trx();
-    makeMsigProposeQR_step1(transaction, document.getElementById("staking_accts").value, "active");
+    makeMsigProposeQR_step1(transaction, document.getElementById("permissioned_accounts").value, "active");
   });
 
   $('#display_QR').click(function(){
@@ -1022,7 +1032,7 @@ $(document).ready(function () {
     updateReviewStake();
     clearQR();
   });
-  $('#staking_accts').change(function(){
+  $('#permissioned_accounts').change(function(){
     updatePermissions();
     clearQR();
   });
@@ -1284,10 +1294,10 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
 </div>
 
 <div id="BackingPermissions" class="tabcontent" style="background-color:Beige;">
-  <h3>Set account permissions for backing</h3>
+  <h3>Set account permissions for garner & backing</h3>
   <div>
-    <label for="staking_accts">Select account:</label>
-    <select name="staking_accts" id="staking_accts"> </select>
+    <label for="permissioned_accounts">Select account:</label>
+    <select name="permissioned_accounts" id="permissioned_accounts"> </select>
     <p>
     <label id="permission_status"></label><br>
     <label id="permission_action"</label>
