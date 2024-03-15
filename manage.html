@@ -857,6 +857,12 @@ $(document).ready(function () {
     getRows("symbols", document.getElementById("contract_account").value,
             setTokenDatalist, emptyTokenDatalist);
   });
+  $('#token_symbol').focusout(function(){
+    const pattern=new RegExp("^[A-Z]{1,7}$");
+    if( !pattern.test(document.getElementById("token_symbol").value) ) {
+      alert(`token symbol '${document.getElementById('token_symbol').value}' must be 1 to 7 capital letters`);
+    }
+  });
   $('#create_QR').click(function(){
     const transaction = create_trx();
     console.log(transaction);
@@ -1142,7 +1148,8 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <label for="contract_account" >Master Contract:</label>
   <input id="contract_account"></input> <br>
   <label for="token_symbol">Token symbol:</label>
-  <input type="text" list="tokens" id="token_symbol" name="token_symbol" value=""> <br>
+  <input type="text" list="tokens" id="token_symbol" name="token_symbol" value=""
+    title="1 to 7 capital letters"> <br>
   <label for="issuer_account">Issuer Account:</label>
   <input type="text" maxlength="12" id="issuer_account" name="issuer_account" value=""> <br>
   </p>
