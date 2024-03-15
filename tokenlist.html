@@ -128,6 +128,7 @@ function setupRamTab() {
   document.getElementById("seeds2telos_qty").value = "5.0000";
   document.getElementById("seeds2telos").checked = true;
   document.getElementById("buyram").checked = true;
+  document.getElementById("buyram_qty").value = 1000;
 }
 
 function updateSubmit() {
@@ -339,7 +340,7 @@ $(document).ready(function () {
       actions.push({
         account: "token.seeds", name: "transfer",
         data: {
-          quantity: "5.0000 SEEDS",
+          quantity: `${document.getElementById("seeds2telos_qty").value} SEEDS`,
           from: "............1",
           to: "amm.swaps",
           memo: "swap,0,11"
@@ -351,7 +352,7 @@ $(document).ready(function () {
       actions.push({
         account: "eosio", name: "buyrambytes",
         data: {
-          bytes: 1000,
+          bytes: document.getElementById("buyram_qty").value,
           payer: "............1",
           receiver: document.getElementById("buyramfor").value,
         },
@@ -551,8 +552,10 @@ label {
                   !document.getElementById('seeds2telos').checked"> <br>
   <label for="seeds2telos_qty">SEEDS:</label>
   <input type="text" id="seeds2telos_qty" name="seeds2telos_qty"> <br>
-  <label for="buyram">Buy 1K of RAM</label>
-  <input type="checkbox" id="buyram" > <br> 
+  <label for="buyram">Buy RAM</label>
+  <input type="checkbox" id="buyram" > <br>
+  <label for="buyram_qty">RAM amount:</label>
+  <input type="text" id="buyram_qty" name="buyram_qty"> bytes<br>
   <label for="buyramfor">for account:</label>
   <input type="text" id="buyramfor" name="buyramfor" value="" > <br>
 
