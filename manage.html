@@ -129,6 +129,8 @@ function create_trx() {
                     document.getElementById("withdraw_to").value;
   let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
                    document.getElementById("freeze_mgr").value;
+  let valuation_mgr = !document.getElementById("valuation_enabled").checked ? "" :
+                   document.getElementById("valuation_mgr").value;
   const redeem_date_input = document.getElementById("redeem_lock_until").value;
   const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
   const config_date_input = document.getElementById("config_lock_until").value;
@@ -155,6 +157,7 @@ function create_trx() {
       broker_symbol: document.getElementById("broker_symbol").value,
       cred_limit_symbol: document.getElementById("cred_lim").value,
       pos_limit_symbol: document.getElementById("max_lim").value,
+      valuation_mgr: valuation_mgr
     },
     authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
   })
@@ -1188,11 +1191,19 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   </p>
   <p>
   <label for="freeze_enabled">Freeze enabled:</label>
-  <input type="checkbox" id="freeze_enabled" checked
+  <input type="checkbox" id="freeze_enabled" 
          onclick="document.getElementById('freeze_mgr').disabled =
                   !document.getElementById('freeze_enabled').checked"> <br>
   <label for="freeze_mgr">Freeze manager:</label>
-  <input type="text" id="freeze_mgr" name="freeze_mgr" value=""> <br>
+  <input type="text" id="freeze_mgr" name="freeze_mgr" value="" disabled> <br>
+  </p>
+  <p>
+  <label for="valuation_enabled">Valuation enabled:</label>
+  <input type="checkbox" id="valuation_enabled" 
+         onclick="document.getElementById('valuation_mgr').disabled =
+                  !document.getElementById('valuation_enabled').checked"> <br>
+  <label for="freeze_mgr">Valuation manager:</label>
+  <input type="text" id="valuation_mgr" name="valuation_mgr" value="" disabled> <br>
   </p>
   <label for="redeem_lock_until">Redeem locked until:</label>
   <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br><br>
