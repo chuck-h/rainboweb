@@ -8,7 +8,7 @@
 <script type="text/javascript">
 var networklist = [{name: "Telos mainnet", contract: "rainbowproto",
                     endpoints: ["https://telos.caleos.io/", "https://mainnet.telos.net/"] },
-                   {name: "Telos testnet", contract: "histrdotsuds",
+                   {name: "Telos testnet", contract: "rainbowtoken",
                     endpoints: ["https://testnet.telos.caleos.io/"] },
                    {name: "Proton mainnet", contract: "rainbowproto",
                     endpoints: ["https://proton.eosusa.io/", "https://proton.protonuk.io/"] }
@@ -88,6 +88,9 @@ function openTab(evt, tabName) {
   if( tabName=="Send" ) {
     setupSendTab();
   }
+  if( tabName=="SetValuation" ) {
+    setupSetValTab();
+  }
 }
 function setupCreateTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
@@ -98,9 +101,18 @@ function setupCreateTab() {
           document.getElementById("withdraw_enabled").checked ? data.rows[0].withdrawal_mgr : "";
         document.getElementById("withdraw_to").value = 
           document.getElementById("withdraw_enabled").checked ? data.rows[0].withdraw_to : "";
+        document.getElementById("withdraw_mgr").disabled =
+          document.getElementById("withdraw_to").disabled = !document.getElementById("withdraw_enabled").checked;
         document.getElementById("freeze_enabled").checked = data.rows[0].freeze_mgr != 'eosio.null';
         document.getElementById("freeze_mgr").value = 
           document.getElementById("freeze_enabled").checked ? data.rows[0].freeze_mgr : "";
+        document.getElementById("freeze_mgr").disabled = !document.getElementById("freeze_enabled").checked;
+        document.getElementById("valuation_enabled").checked =
+         !(data.rows[0].valuation_mgr===undefined) && data.rows[0].valuation_mgr != 'eosio.null' &&
+         data.rows[0].valuation_mgr != '';
+        document.getElementById("valuation_mgr").value = 
+          document.getElementById("valuation_enabled").checked ? data.rows[0].valuation_mgr : "";
+        document.getElementById("valuation_mgr").disabled = !document.getElementById("valuation_enabled").checked;
         document.getElementById("redeem_lock_until").value =
            offsetDateHTML(data.rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
@@ -588,6 +600,51 @@ function setupSendTab() {
   document.getElementById("send_to").value = "";
   document.getElementById("send_memo").value = "";
 }
+function setval_trx(actor) {
+    let actions=[];
+    actions.push({
+      account: document.getElementById("contract_account").value, name: "setvaluation",
+      data: {
+        symbolcode: document.getElementById("token_symbol").value,
+        val_per_token: document.getElementById("val_per_token").value,
+        ref_currency: document.getElementById("ref_currency").value,
+        memo: document.getElementById("valuation_memo").value
+      },
+      authorization: [{actor: actor, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+function setupSetValTab() {
+  getRows("configs", document.getElementById("token_symbol").value, 
+    function(data, status, jqXHR){
+      document.getElementById("valuation_mgr").value = "eosio.null";
+      if( data.rows.length != 0 ) {
+        const row = data.rows[0];
+        console.log(row);
+        if (!(row.valuation_mgr===undefined) && row.valuation_mgr != "") {
+            document.getElementById("valuation_mgr").value = row.valuation_mgr;
+            document.getElementById("ref_currency").value = 
+              (row.ref_currency===undefined || row.ref_currency == "") ? "USD" : row.ref_currency;
+            document.getElementById("val_per_token").value = 
+              row.val_per_token===undefined ? 1.0 : row.val_per_token;
+            document.getElementById("valuation_memo").value = "";
+        }
+      }
+      document.getElementById("ref_currency").disabled =
+      document.getElementById("val_per_token").disabled =
+      document.getElementById("valuation_memo").disabled =
+      document.getElementById("setval_QR").disabled =
+      document.getElementById("setval_msig_propose_QR").disabled =
+      document.getElementById("valuation_mgr").value == "eosio.null";
+      document.getElementById("no_val_mgr").style.visibility = 
+        document.getElementById("valuation_mgr").value == "eosio.null" ? "visible" : "hidden";
+    },
+    function(x,s,e) { } );
+}
 
 function setupReviewStakesTab() {
     getRows("backings", document.getElementById("token_symbol").value,
@@ -650,7 +707,6 @@ function updateIssuer() {
           },
           function(x,s,e) { 
           });
-  
 }
 
 function updateDisplayJson() {
@@ -1037,6 +1093,17 @@ $(document).ready(function () {
     const transaction = send_trx(actor);
     makeMsigProposeQR_step1(transaction, actor, "active");
   });
+  $('#setval_QR').click(function(){
+    const actor = document.getElementById("valuation_mgr").value;
+    const transaction = setval_trx(actor);
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#setval_msig_propose_QR').click(function(){
+    const actor = document.getElementById("valuation_mgr").value;
+    const transaction = send_trx(actor);
+    makeMsigProposeQR_step1(transaction, actor, "active");
+  });
   
   $('#stakes').change(function(){
     updateReviewStake();
@@ -1171,6 +1238,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <button class="tablinks" onclick="openTab(event, 'Freeze')">Freeze</button>
   <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
   <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
+  <button class="tablinks" onclick="openTab(event, 'SetValuation')">Set Valuation</button>
 </div>
 
 
@@ -1451,6 +1519,23 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
     <input type="button" id="send_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
     <input type="button" id="send_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="SetValuation" class="tabcontent" style="background-color:Beige;">
+  <h3>Set token valuation</h3>
+  <div id="no_val_mgr" style="visibility:hidden;">There is no valuation manager for this token.</div>
+  <br><br>
+  <label for="ref_currency">Reference Currency:</label>
+  <input type="text" id="ref_currency" name="ref_currency"> <br>
+  <label for="val_per_token">Value per token:</label>
+  <input type="number" id="val_per_token" name="val_per_token" min="0" > <br>
+  <label for="valuation_memo">Memo:</label>
+  <textarea rows="2" id="valuation_memo" name="valuation_memo" value="" style="vertical-align:middle;"> </textarea> <br><br>
+  <div id="button-wrapper">
+    <input type="button" id="setval_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="setval_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
