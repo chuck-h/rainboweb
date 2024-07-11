@@ -112,7 +112,7 @@ function setupCreateTab() {
          data.rows[0].valuation_mgr != '';
         document.getElementById("valuation_mgr").value = 
           document.getElementById("valuation_enabled").checked ? data.rows[0].valuation_mgr : "";
-        document.getElementById("valuation_mgr").disabled = !document.getElementById("valuation_enabled").checked;
+        document.getElementById("valuation_mgr").disaCREDITObled = !document.getElementById("valuation_enabled").checked;
         document.getElementById("redeem_lock_until").value =
            offsetDateHTML(data.rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
@@ -624,7 +624,6 @@ function setupSetValTab() {
       document.getElementById("valuation_mgr").value = "eosio.null";
       if( data.rows.length != 0 ) {
         const row = data.rows[0];
-        console.log(row);
         if (!(row.valuation_mgr===undefined) && row.valuation_mgr != "") {
             document.getElementById("valuation_mgr").value = row.valuation_mgr;
             document.getElementById("ref_currency").value = 
