@@ -645,6 +645,24 @@ function setupSetValTab() {
     function(x,s,e) { } );
 }
 
+function msig_approve_trx(actor) {
+    let actions=[];
+    actions.push({
+      account: "eosio.msig", name: "approve",
+      data: {
+        proposer: document.getElementById("proposer").value,
+        proposal_name: document.getElementById("proposal_name").value,
+        level: { actor: actor, permission: "active" },
+      },
+      authorization: [{actor: actor, permission: "active"}]
+    })
+
+    transaction =  {
+      actions: actions
+    }
+    return transaction;
+}
+
 function setupReviewStakesTab() {
     getRows("backings", document.getElementById("token_symbol").value,
             function(data, status, jqXHR) {
@@ -1100,7 +1118,18 @@ $(document).ready(function () {
   });
   $('#setval_msig_propose_QR').click(function(){
     const actor = document.getElementById("valuation_mgr").value;
-    const transaction = send_trx(actor);
+    const transaction = setval_trx(actor);
+    makeMsigProposeQR_step1(transaction, actor, "active");
+  });
+  
+  $('#msig_approve_QR').click(function(){
+    const transaction = msig_approve_trx(document.getElementById("approver").value);
+    console.log(transaction);
+    makeQR(transaction);
+  });
+  $('#msig_approve_msig_propose_QR').click(function(){
+    const actor = document.getElementById("approver").value;
+    const transaction = msig_approve_trx(actor);
     makeMsigProposeQR_step1(transaction, actor, "active");
   });
   
@@ -1238,6 +1267,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <button class="tablinks" onclick="openTab(event, 'TopUpRam')">Top Up RAM</button>
   <button class="tablinks" onclick="openTab(event, 'Send')">Send Tokens</button>
   <button class="tablinks" onclick="openTab(event, 'SetValuation')">Set Valuation</button>
+  <button class="tablinks" onclick="openTab(event, 'MsigApprove')">Msig Approve</button>
 </div>
 
 
@@ -1535,6 +1565,22 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
     <input type="button" id="setval_QR" value="Create QR" class="button">
     <input type="button" value="Clear QR" onclick="clearQR()" class="button">
     <input type="button" id="setval_msig_propose_QR" value="Propose Msig QR" class="button">
+  </div>
+</div>
+
+<div id="MsigApprove" class="tabcontent" style="background-color:Beige;">
+  <h3>Approve a proposed Multisig action</h3>
+  <label for="proposal_name">Proposal name:</label>
+  <input type="text" id="proposal_name" name="proposal_name"> <br>
+  <label for="proposer">Proposed by:</label>
+  <input type="text" id="proposer" name="proposer"> <br>
+  <label for="approver">Approval by:</label>
+  <input type="text" id="approver" name="approver"> <br>
+<br><br>
+  <div id="button-wrapper">
+    <input type="button" id="msig_approve_QR" value="Create QR" class="button">
+    <input type="button" value="Clear QR" onclick="clearQR()" class="button">
+    <input type="button" id="msig_approve_msig_propose_QR" value="Propose Msig QR" class="button">
   </div>
 </div>
 
