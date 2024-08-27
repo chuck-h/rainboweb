@@ -94,45 +94,44 @@ function openTab(evt, tabName) {
 }
 function setupCreateTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        document.getElementById("withdraw_enabled").checked = data.rows[0].withdrawal_mgr != 'eosio.null';
+    function(rows){
+      if( rows.length != 0 ) {
+        document.getElementById("withdraw_enabled").checked = rows[0].withdrawal_mgr != 'eosio.null';
         document.getElementById("withdraw_mgr").value = 
-          document.getElementById("withdraw_enabled").checked ? data.rows[0].withdrawal_mgr : "";
+          document.getElementById("withdraw_enabled").checked ? rows[0].withdrawal_mgr : "";
         document.getElementById("withdraw_to").value = 
-          document.getElementById("withdraw_enabled").checked ? data.rows[0].withdraw_to : "";
+          document.getElementById("withdraw_enabled").checked ? rows[0].withdraw_to : "";
         document.getElementById("withdraw_mgr").disabled =
           document.getElementById("withdraw_to").disabled = !document.getElementById("withdraw_enabled").checked;
-        document.getElementById("freeze_enabled").checked = data.rows[0].freeze_mgr != 'eosio.null';
+        document.getElementById("freeze_enabled").checked = rows[0].freeze_mgr != 'eosio.null';
         document.getElementById("freeze_mgr").value = 
-          document.getElementById("freeze_enabled").checked ? data.rows[0].freeze_mgr : "";
+          document.getElementById("freeze_enabled").checked ? rows[0].freeze_mgr : "";
         document.getElementById("freeze_mgr").disabled = !document.getElementById("freeze_enabled").checked;
         document.getElementById("valuation_enabled").checked =
-         !(data.rows[0].valuation_mgr===undefined) && data.rows[0].valuation_mgr != 'eosio.null' &&
-         data.rows[0].valuation_mgr != '';
+         !(rows[0].valuation_mgr===undefined) && rows[0].valuation_mgr != 'eosio.null' &&
+         rows[0].valuation_mgr != '';
         document.getElementById("valuation_mgr").value = 
-          document.getElementById("valuation_enabled").checked ? data.rows[0].valuation_mgr : "";
+          document.getElementById("valuation_enabled").checked ? rows[0].valuation_mgr : "";
         document.getElementById("valuation_mgr").disabled = !document.getElementById("valuation_enabled").checked;
         document.getElementById("redeem_lock_until").value =
-           offsetDateHTML(data.rows[0].redeem_locked_until);
+           offsetDateHTML(rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
-           offsetDateHTML(data.rows[0].config_locked_until);
-        document.getElementById("member_symbol").value = data.rows[0].membership;
-        document.getElementById("broker_symbol").value = data.rows[0].broker;
+           offsetDateHTML(rows[0].config_locked_until);
+        document.getElementById("member_symbol").value = rows[0].membership;
+        document.getElementById("broker_symbol").value = rows[0].broker;
         document.getElementById("MC_enabled").checked =
-           data.rows[0].cred_limit != "" || data.rows[0].positive_limit != "";
-        document.getElementById("cred_lim").value = data.rows[0].cred_limit;
-        document.getElementById("max_lim").value = data.rows[0].positive_limit;
+           rows[0].cred_limit != "" || rows[0].positive_limit != "";
+        document.getElementById("cred_lim").value = rows[0].cred_limit;
+        document.getElementById("max_lim").value = rows[0].positive_limit;
       }
-    },
-    function(x,s,e) { } );
+    });
+    
   getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        document.getElementById("max_supply").value = data.rows[0].max_supply.split(" ")[0];
+    function(rows){
+      if( rows.length != 0 ) {
+        document.getElementById("max_supply").value = rows[0].max_supply.split(" ")[0];
       }
-    },
-    function(x,s,e) { } );
+    });
 }
 function create_trx() {
   let withdrawal_mgr = !document.getElementById("withdraw_enabled").checked ? "eosio.null" :
@@ -200,14 +199,13 @@ function approve_trx() {
 
 function setupApproveTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
+    function(rows){
       let visibility = "hidden";
-      if( data.rows.length != 0 && data.rows[0].approved) {
+      if( rows.length != 0 && rows[0].approved) {
         visibility = "visible";
       }
     document.getElementById("approved_in_table").style.visibility = visibility;
-    },
-    function(x,s,e) { } );
+    });
 }
 
 function setbacking_trx() {
@@ -256,9 +254,9 @@ function deletebacking_trx() {
 
 function setupAddBackingTab() {  
   getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+    function(rows){
+      if( rows.length != 0 ) {
+        let qtysplit = rows[0].max_supply.split(" ")[0].split(".");
         if( qtysplit.length == 1 ) {
           document.getElementById("bucket").value = "1";
         } else {
@@ -310,24 +308,23 @@ function setupPermissionsTab() {
     $("#permissioned_accounts").empty();
     const accts = new Set();
     getRows("configs", document.getElementById("token_symbol").value, 
-      function(data, status, jqXHR){
-        const wm = data.rows[0].withdrawal_mgr;
+      function(rows){
+        const wm = rows[0].withdrawal_mgr;
         if (wm !== "eosio.null") {
           accts.add(wm);
         }
         getRows("backings", document.getElementById("token_symbol").value,
-                function(data, status, jqXHR) {
-                  if (data.rows.length != 0) {
+                function(rows) {
+                  if (rows.length != 0) {
                     accts.add(document.getElementById("issuer_account").value);
-                    data.rows.map( function(row) { accts.add(row.escrow); } );
+                    rows.map( function(row) { accts.add(row.escrow); } );
                   }
                   accts.forEach(function(acct) {
                     $("<option/>").html(`${acct}`).appendTo("#permissioned_accounts");
                   });
                   updatePermissions();       
                 });
-      },
-      function(x,s,e) { } );
+      });
 }
 
 function updatePermissions() {
@@ -388,10 +385,10 @@ function setupDisplayTab() {
   document.getElementById("edit_display_json").checked = false;
   document.getElementById("display_json").readOnly = true;
   getRows("displays", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
+    function(rows){
       let jd;
-      if( data.rows.length != 0 && data.rows[0].json_meta != "") {
-        document.getElementById("display_json").value = data.rows[0].json_meta;
+      if( rows.length != 0 && rows[0].json_meta != "") {
+        document.getElementById("display_json").value = rows[0].json_meta;
       } else {
         document.getElementById("display_json").value =
          '{"chain":"Telos", "symbol":"'+document.getElementById("token_symbol").value+'",' +
@@ -457,9 +454,9 @@ function issue_trx() {
 
 function setupIssueTab() {  
   getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+    function(rows){
+      if( rows.length != 0 ) {
+        let qtysplit = rows[0].max_supply.split(" ")[0].split(".");
         if( qtysplit.length == 1 ) {
           document.getElementById("issue_qty").value = "1";
         } else {
@@ -494,17 +491,16 @@ function redeem_trx() {
 
 function setupRedeemTab() {  
   getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+    function(rows){
+      if( rows.length != 0 ) {
+        let qtysplit = rows[0].max_supply.split(" ")[0].split(".");
         if( qtysplit.length == 1 ) {
           document.getElementById("redeem_qty").value = "1";
         } else {
           document.getElementById("redeem_qty").value = `1.${qtysplit[1]}`; 
         } 
       }
-    },
-    function(x,s,e) { } );
+    });
 
   document.getElementById("redeem_from").value = "";
   document.getElementById("redeem_memo").value = "";
@@ -529,14 +525,14 @@ function freeze_trx() {
 }
 function setupFreezeTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
+    function(rows){
       let visibility = "hidden";
-      if( data.rows.length != 0 && data.rows[0].transfers_frozen) {
+      if( rows.length != 0 && rows[0].transfers_frozen) {
         visibility = "visible";
       }
-      if( data.rows.length != 0 ) {
-        document.getElementById("freeze_account").value = data.rows[0].freeze_mgr;
-        if (data.rows[0].freeze_mgr !== "eosio.null") {
+      if( rows.length != 0 ) {
+        document.getElementById("freeze_account").value = rows[0].freeze_mgr;
+        if (rows[0].freeze_mgr !== "eosio.null") {
           mgr_visibility = "visible";
         } else {
           mgr_visibility = "hidden";
@@ -544,8 +540,7 @@ function setupFreezeTab() {
       }
     document.getElementById("frozen_in_table").style.visibility = visibility;
     document.getElementById("freezer").style.visibility = mgr_visibility;
-    },
-    function(x,s,e) { } );
+    });
 }
 
 function setupRamTab() {
@@ -579,22 +574,20 @@ function send_trx(actor) {
 function setupSendTab() {
   withdraw = "eosio.null";  
   getRows("stat", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
-      if( data.rows.length != 0 ) {
-        let qtysplit = data.rows[0].max_supply.split(" ")[0].split(".");
+    function(rows){
+      if( rows.length != 0 ) {
+        let qtysplit = rows[0].max_supply.split(" ")[0].split(".");
         if( qtysplit.length == 1 ) {
           document.getElementById("send_qty").value = "1";
         } else {
           document.getElementById("send_qty").value = `1.${qtysplit[1]}`; 
         }
         getRows("configs", document.getElementById("token_symbol").value, 
-          function(data, status, jqXHR){
-            withdraw = data.rows[0].withdrawal_mgr;
-          },
-          function(x,s,e) { } );
+          function(rows){
+            withdraw = rows[0].withdrawal_mgr;
+          });
       }
-    },
-    function(x,s,e) { } );
+    });
 
   document.getElementById("send_from").value = "";
   document.getElementById("send_to").value = "";
@@ -620,10 +613,10 @@ function setval_trx(actor) {
 }
 function setupSetValTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
-    function(data, status, jqXHR){
+    function(rows){
       document.getElementById("valuation_mgr").value = "eosio.null";
-      if( data.rows.length != 0 ) {
-        const row = data.rows[0];
+      if( rows.length != 0 ) {
+        const row = rows[0];
         if (!(row.valuation_mgr===undefined) && row.valuation_mgr != "") {
             document.getElementById("valuation_mgr").value = row.valuation_mgr;
             document.getElementById("ref_currency").value = 
@@ -641,8 +634,7 @@ function setupSetValTab() {
       document.getElementById("valuation_mgr").value == "eosio.null";
       document.getElementById("no_val_mgr").style.visibility = 
         document.getElementById("valuation_mgr").value == "eosio.null" ? "visible" : "hidden";
-    },
-    function(x,s,e) { } );
+    });
 }
 
 function msig_approve_trx(actor) {
@@ -665,37 +657,34 @@ function msig_approve_trx(actor) {
 
 function setupReviewStakesTab() {
     getRows("backings", document.getElementById("token_symbol").value,
-            function(data, status, jqXHR) {
-              if( data.rows.length == 0 ) {
+            function(rows) {
+              if( rows.length == 0 ) {
                 document.getElementById("stakeselector").style.display = "none";
                 document.getElementById("nostakes").style.display = "block";
               } else {
                 $("#stakes").empty();
-                data["rows"].forEach(function(row) {
+                rows.forEach(function(row) {
                   $("<option/>").html(`${row.index} ${row.backs_per_bucket}`).appendTo("#stakes");
                 });
-                reviewOneStake(data);
+                reviewOneStake(rows);
               }        
-            },
-            function(x,s,e) { 
-              document.getElementById("stakeselector").style.display = "none";
-              document.getElementById("nostakes").style.display = "block";
-            } );
+            });
 }
 
 function updateReviewStake() {
-  getRows("backings", document.getElementById("token_symbol").value,
-          function(data, status, jqXHR) {
-            reviewOneStake(data);
-          },
-          function(x,s,e) { 
-            document.getElementById("stakeselector").style.display = "none";
-            document.getElementById("nostakes").style.display = "block";
-          });
+  try {
+    getRows("backings", document.getElementById("token_symbol").value,
+            function(rows) {
+              reviewOneStake(rows);
+            });
+  } catch(err) {
+      document.getElementById("stakeselector").style.display = "none";
+      document.getElementById("nostakes").style.display = "block";
+  }
 }
 
-function reviewOneStake(data) {
-  if( data.rows.length == 0 ) {
+function reviewOneStake(rows) {
+  if( rows.length == 0 ) {
     document.getElementById("stakeselector").style.display = "none";
     document.getElementById("nostakes").style.display = "block";
     return;
@@ -704,7 +693,7 @@ function reviewOneStake(data) {
   document.getElementById("nostakes").style.display = "none";
   const selectedStake = document.getElementById("stakes").value;
   const selectedIndex = selectedStake.split(" ")[0];
-  const selectedRow = data.rows.find(function(row){return row.index==selectedIndex;});
+  const selectedRow = rows.find(function(row){return row.index==selectedIndex;});
   document.getElementById("r_bucket").value = selectedRow.token_bucket.split(" ")[0];
   document.getElementById("r_staked").value = selectedRow.backs_per_bucket.split(" ")[0];
   document.getElementById("r_stake_symbol").value = selectedRow.backs_per_bucket.split(" ")[1];
@@ -717,12 +706,10 @@ function reviewOneStake(data) {
 function updateIssuer() {
   getRows("stat", document.getElementById("token_symbol").value,
 
-          function(data, status, jqXHR) {
-            if( data.rows.length != 0 ) {
-              document.getElementById("issuer_account").value = data.rows[0].issuer;
+          function(rows) {
+            if( rows.length != 0 ) {
+              document.getElementById("issuer_account").value = rows[0].issuer;
             }
-          },
-          function(x,s,e) { 
           });
 }
 
@@ -887,43 +874,56 @@ function setTokenDatalist(data, status, jqXHR) {
       $("<option/>").html(row.symbolcode).appendTo("#tokens");
   });
 }
+function ssetTokenDatalist(rows) {
+  $("#tokens").empty();
+  rows.sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
+                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
+    .forEach(function(row) {
+      $("<option/>").html(row.symbolcode).appendTo("#tokens");
+  });
+}
 function emptyTokenDatalist(x,s,e) {
   $("#tokens").empty();
 }
-function getRows(table, scope, action, erroraction=null) {
+
+function getRowsPage(table, scope, lower_bound) {
   const url = chain_endpoint + "v1/chain/get_table_rows";
   const data ={ code: document.getElementById("contract_account").value,
                 table: table,
                 scope: scope,
-                limit: 40,
+                lower_bound: lower_bound,
+                limit: 10,
                 json: "true" };
-    $.ajax({
+  return $.ajax({
       type: "POST",
       url: url,
       data: JSON.stringify(data),
       contentType: "application/json; charset=utf-8",
       dataType: "json",
-      success: action,
-      error: function(xhr, status, error) {
-        if(erroraction==null) {
-          alert(xhr.responseText);
-        } else {
-          erroraction(xhr, status, error);
-        }
-      }
-    });
-// TBD
+  });
+}
+function getRowsFrom(table, scope, lower_bound, rows) {
+  return getRowsPage(table, scope, lower_bound).then(function(data){
+    if (data.more) {
+      return getRowsFrom(table, scope, data.next_key, rows.concat(data.rows));
+    } else {
+      return rows.concat(data.rows);
+    }
+  })
+}
+function getRows(table, scope, action) {
+  getRowsFrom(table, scope, 0, []).then(action);
 }
 
 $(document).ready(function () {
   setup_networks();
   update_network();
   getRows("symbols", document.getElementById("contract_account").value,
-          setTokenDatalist, emptyTokenDatalist);
+          ssetTokenDatalist);
   $('#networks').click(function(){
     update_network();
     getRows("symbols", document.getElementById("contract_account").value,
-            setTokenDatalist, emptyTokenDatalist);
+            ssetTokenDatalist);
     openTab(null, null);
   });
   $('#contract_account').change(function(){
@@ -932,7 +932,7 @@ $(document).ready(function () {
     console.log(networklist);
     openTab(null, null);
     getRows("symbols", document.getElementById("contract_account").value,
-            setTokenDatalist, emptyTokenDatalist);
+            ssetTokenDatalist);
   });
   $('#token_symbol').focusout(function(){
     const pattern=new RegExp("^[A-Z]{1,7}$");
