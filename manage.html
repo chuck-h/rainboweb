@@ -866,24 +866,73 @@ function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
     });
 }
 
-function setTokenDatalist(data, status, jqXHR) {
+function setTokenDatalist(rows) {
   $("#tokens").empty();
-  data["rows"].sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
-                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
-    .forEach(function(row) {
-      $("<option/>").html(row.symbolcode).appendTo("#tokens");
+  if(rows.length == 0) { return; }
+  let symbolcodes = rows.map((row) => nameToSymbol(row.scope));
+  symbolcodes.sort()
+    .forEach(function(symbolcode) {
+      $("<option/>").html(symbolcode).appendTo("#tokens");
   });
 }
-function ssetTokenDatalist(rows) {
-  $("#tokens").empty();
-  rows.sort((a,b) => (a.symbolcode > b.symbolcode) ? 1 : 
-                         ((b.symbolcode > a.symbolcode) ? -1 : 0))
-    .forEach(function(row) {
-      $("<option/>").html(row.symbolcode).appendTo("#tokens");
+
+function nameCharToValue(s) {
+  const charmap = ".12345abcdefghijklmnopqrstuvwxyz";
+  return charmap.indexOf(s[0]);
+}
+  
+function nameToSymbol(name_string) {
+  let value = BigInt("0");
+  const n = name_string.length == 13 ? 12 : name_string.length;
+  for (let i = 0; i < n; i++) {
+    let v = BigInt(nameCharToValue(name_string[i]));
+    if(v < 0) {
+      // TBD thtrow & handle error
+      console.log(`invalid name string $name_string`);
+      return "";
+    }
+    value <<= BigInt(5);
+    value |= v;
+  }
+  value <<= BigInt( 4 + 5*(12 - n) );
+  if(name_string.length > 12) {
+    value |= BigInt(nameCharToValue(name_string[12]));
+  }
+  let rv = "";
+  for (let i = 0; i < 7; i++) {
+    rv = rv+String.fromCharCode(Number(BigInt.asUintN(8, value)));
+    value >>= BigInt(8);
+  }
+  return rv;
+}
+    
+function getScopesPage(table, lower_bound) {
+  const url = chain_endpoint + "v1/chain/get_table_by_scope";
+  const data ={ code: document.getElementById("contract_account").value,
+                table: table,
+                lower_bound: lower_bound,
+                limit: 20,
+                json: "true" };
+  return $.ajax({
+      type: "POST",
+      url: url,
+      data: JSON.stringify(data),
+      contentType: "application/json; charset=utf-8",
+      dataType: "json",
   });
 }
-function emptyTokenDatalist(x,s,e) {
-  $("#tokens").empty();
+function getScopesFrom(table, lower_bound, rows) {
+  return getScopesPage(table, lower_bound).then(function(data){
+    console.log(data);
+    if (data.more) {
+      return getScopesFrom(table, data.more, rows.concat(data.rows));
+    } else {
+      return rows.concat(data.rows);
+    }
+  })
+}
+function getScopes(table, scope, action) {
+  getScopesFrom(table, "", []).then(action);
 }
 
 function getRowsPage(table, scope, lower_bound) {
@@ -892,7 +941,7 @@ function getRowsPage(table, scope, lower_bound) {
                 table: table,
                 scope: scope,
                 lower_bound: lower_bound,
-                limit: 10,
+                limit: 20,
                 json: "true" };
   return $.ajax({
       type: "POST",
@@ -918,12 +967,14 @@ function getRows(table, scope, action) {
 $(document).ready(function () {
   setup_networks();
   update_network();
-  getRows("symbols", document.getElementById("contract_account").value,
-          ssetTokenDatalist);
+    $("#tokens").empty();
+    getScopes("stat", document.getElementById("contract_account").value,
+            setTokenDatalist);
   $('#networks').click(function(){
     update_network();
-    getRows("symbols", document.getElementById("contract_account").value,
-            ssetTokenDatalist);
+    $("#tokens").empty();
+    getScopes("stat", document.getElementById("contract_account").value,
+            setTokenDatalist);
     openTab(null, null);
   });
   $('#contract_account').change(function(){
@@ -931,8 +982,9 @@ $(document).ready(function () {
     selected_net.contract = document.getElementById("contract_account").value;
     console.log(networklist);
     openTab(null, null);
-    getRows("symbols", document.getElementById("contract_account").value,
-            ssetTokenDatalist);
+    $("#tokens").empty();
+    getScopes("stat", document.getElementById("contract_account").value,
+            setTokenDatalist);
   });
   $('#token_symbol').focusout(function(){
     const pattern=new RegExp("^[A-Z]{1,7}$");
