@@ -140,7 +140,7 @@ function create_trx() {
                     document.getElementById("withdraw_to").value;
   let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
                    document.getElementById("freeze_mgr").value;
-  let valuation_mgr = !document.getElementById("valuation_enabled").checked ? "" :
+  let valuation_mgr = !document.getElementById("valuation_enabled").checked ? "eosio.null" :
                    document.getElementById("valuation_mgr").value;
   const redeem_date_input = document.getElementById("redeem_lock_until").value;
   const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
@@ -1148,7 +1148,13 @@ $(document).ready(function () {
     // TBD: check blockchain for transaction posted, or timeout?
   });
   $('#send_QR').click(function(){
-    const transaction = send_trx("............1");
+    var actor; 
+    if ( document.getElementById("send_to").value == withdraw ) {
+      actor = withdraw;
+    } else {
+      actor = document.getElementById("send_from").value;
+    }
+    const transaction = send_trx(actor);
     console.log(transaction);
     makeQR(transaction);
   });
