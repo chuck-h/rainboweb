@@ -527,6 +527,7 @@ function setupFreezeTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(rows){
       let visibility = "hidden";
+      let mgr_visibility = "hidden";
       if( rows.length != 0 && rows[0].transfers_frozen) {
         visibility = "visible";
       }
@@ -739,6 +740,7 @@ function esrGenUrl() {
   const selected_net = networklist.find((n) => n.name === document.getElementById("networks").value);
   return esr_gen_base + '/qr';
 }
+var QREsr;
 function makeQR(transaction) {
     transaction.endpoint = chain_endpoint.slice(0, -1); // trim terminal '/'
     $.ajax({
@@ -748,11 +750,14 @@ function makeQR(transaction) {
       contentType: "application/json; charset=utf-8",
       dataType: "json",
       success: function(data, status, jqXHR) {
+        QREsr = data.esr;
         qrcode.innerHTML = `<img src=${data.qr}>`;
         esr.innerHTML = data.esr;
+        eosioto.style.visibility = 'visible';
       },
       error: function(xhr, status, error) {
         esr.innerHTML = xhr.responseText;
+        QREsr = '';
       }
     });
 }
@@ -760,6 +765,8 @@ function clearQR() {
     note.innerHTML = '';
     qrcode.innerHTML = ``;
     esr.innerHTML = ``;
+    eosioto.style.visibility = 'hidden';
+    QREsr = '';
 }
 
 function genProposalName() {
@@ -1000,6 +1007,12 @@ $(document).ready(function () {
   $('#create_msig_propose_QR').click(function(){
     const transaction = create_trx(); // call common code for 'create' transaction
     makeMsigProposeQR_step1(transaction, document.getElementById("issuer_account").value, "active");
+  });
+  $('#eosioto').click(function(){
+    window.open(
+      QREsr.replace("esr://", "https://eosio.to/"),
+      '_blank'
+    );
   });
 
   $('#approve_QR').click(function(){
@@ -1644,6 +1657,7 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
 
 <div id=note> </div>
 <div id=qrcode> </div>
+<input type="button" id="eosioto" value="Transaction Link" class="button" style="visibility:hidden;">  <br><br>
 <div id=esr> </div>
 
 </body>

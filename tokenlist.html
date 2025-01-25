@@ -247,6 +247,7 @@ function esrGenUrl() {
   const esr_gen_base = "https://cc42.xyz";
   return esr_gen_base + '/qr';
 }
+var QREsr;
 function makeQR(transaction) {
     $.ajax({
       type: "POST",
@@ -255,17 +256,23 @@ function makeQR(transaction) {
       contentType: "application/json; charset=utf-8",
       dataType: "json",
       success: function(data, status, jqXHR) {
+        QREsr = data.esr;
         qrcode.innerHTML = `<img src=${data.qr}>`;
         esr.innerHTML = data.esr;
+        eosioto.style.visibility = 'visible';
       },
       error: function(xhr, status, error) {
         esr.innerHTML = xhr.responseText;
+        eosioto.style.visibility = 'hidden';
+        QREsr = '';
       }
     });
 }
 function clearQR() {
     qrcode.innerHTML = ``;
     esr.innerHTML = ``;
+    eosioto.style.visibility = 'hidden';
+    QREsr = '';
 }
 
 function getRows(contract, table, scope, action, erroraction=null) {
@@ -384,7 +391,12 @@ $(document).ready(function () {
     makeQR(transaction);
     // TBD: check blockchain for transaction posted, or timeout?
   });
-
+  $('#eosioto').click(function(){
+    window.open(
+      QREsr.replace("esr://", "https://eosio.to/"),
+      '_blank'
+    );
+  });
 });
 </script>
 
@@ -592,6 +604,7 @@ label {
 
 
 <div id=qrcode> </div>
+<input type="button" id="eosioto" value="Transaction Link" class="button" style="visibility:hidden;">  <br><br>
 <div id=esr> </div>
 
 </body>
