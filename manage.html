@@ -107,12 +107,21 @@ function setupCreateTab() {
         document.getElementById("freeze_mgr").value = 
           document.getElementById("freeze_enabled").checked ? rows[0].freeze_mgr : "";
         document.getElementById("freeze_mgr").disabled = !document.getElementById("freeze_enabled").checked;
+        
         document.getElementById("valuation_enabled").checked =
-         !(rows[0].valuation_mgr===undefined) && rows[0].valuation_mgr != 'eosio.null' &&
+         !(rows[0].valuation_mgr===undefined) && rows[0].valuation_mgr != '' &&
          rows[0].valuation_mgr != '';
         document.getElementById("valuation_mgr").value = 
           document.getElementById("valuation_enabled").checked ? rows[0].valuation_mgr : "";
         document.getElementById("valuation_mgr").disabled = !document.getElementById("valuation_enabled").checked;
+        
+        
+        document.getElementById("validator_enabled").checked =
+         !(rows[0].validator===undefined) && rows[0].validator != '';
+        document.getElementById("validator").value = 
+          document.getElementById("validator_enabled").checked ? rows[0].validator : "";
+        document.getElementById("validator").disabled = !document.getElementById("validator_enabled").checked;
+        
         document.getElementById("redeem_lock_until").value =
            offsetDateHTML(rows[0].redeem_locked_until);
         document.getElementById("config_lock_until").value =
@@ -123,6 +132,8 @@ function setupCreateTab() {
            rows[0].cred_limit != "" || rows[0].positive_limit != "";
         document.getElementById("cred_lim").value = rows[0].cred_limit;
         document.getElementById("max_lim").value = rows[0].positive_limit;
+        document.getElementById("cred_lim").disabled =
+          document.getElementById("max_lim").disabled = !document.getElementById("MC_enabled").checked;
       }
     });
     
@@ -140,8 +151,10 @@ function create_trx() {
                     document.getElementById("withdraw_to").value;
   let freeze_mgr = !document.getElementById("freeze_enabled").checked ? "eosio.null" :
                    document.getElementById("freeze_mgr").value;
-  let valuation_mgr = !document.getElementById("valuation_enabled").checked ? "eosio.null" :
+  let valuation_mgr = !document.getElementById("valuation_enabled").checked ? "" :
                    document.getElementById("valuation_mgr").value;
+  let validator = !document.getElementById("validator_enabled").checked ? "" :
+                   document.getElementById("validator").value;
   const redeem_date_input = document.getElementById("redeem_lock_until").value;
   const redeem_date = new Date(redeem_date_input=="" ? Date.now() : redeem_date_input);
   const config_date_input = document.getElementById("config_lock_until").value;
@@ -166,9 +179,10 @@ function create_trx() {
       config_locked_until: config_date.toISOString(),
       membership_symbol: document.getElementById("member_symbol").value,
       broker_symbol: document.getElementById("broker_symbol").value,
-      cred_limit_symbol: document.getElementById("cred_lim").value,
-      pos_limit_symbol: document.getElementById("max_lim").value,
-      valuation_mgr: valuation_mgr
+      cred_limit_symbol: cred_limit_symbol,
+      pos_limit_symbol: pos_limit_symbol,
+      valuation_mgr: valuation_mgr,
+      validator: validator
     },
     authorization: [{actor: document.getElementById("issuer_account").value, permission: "active"}]
   })
@@ -615,7 +629,7 @@ function setval_trx(actor) {
 function setupSetValTab() {
   getRows("configs", document.getElementById("token_symbol").value, 
     function(rows){
-      document.getElementById("valuation_mgr").value = "eosio.null";
+      document.getElementById("valuation_mgr").value = "";
       if( rows.length != 0 ) {
         const row = rows[0];
         if (!(row.valuation_mgr===undefined) && row.valuation_mgr != "") {
@@ -632,9 +646,9 @@ function setupSetValTab() {
       document.getElementById("valuation_memo").disabled =
       document.getElementById("setval_QR").disabled =
       document.getElementById("setval_msig_propose_QR").disabled =
-      document.getElementById("valuation_mgr").value == "eosio.null";
+      document.getElementById("valuation_mgr").value == "";
       document.getElementById("no_val_mgr").style.visibility = 
-        document.getElementById("valuation_mgr").value == "eosio.null" ? "visible" : "hidden";
+        document.getElementById("valuation_mgr").value == "" ? "visible" : "hidden";
     });
 }
 
@@ -1370,8 +1384,16 @@ Video tutorials start <a href="https://vimeo.com/manage/videos/692515415"> here<
   <input type="checkbox" id="valuation_enabled" 
          onclick="document.getElementById('valuation_mgr').disabled =
                   !document.getElementById('valuation_enabled').checked"> <br>
-  <label for="freeze_mgr">Valuation manager:</label>
+  <label for="valuation_mgr">Valuation manager:</label>
   <input type="text" id="valuation_mgr" name="valuation_mgr" value="" disabled> <br>
+  </p>
+  <p>
+  <label for="validator_enabled">Validator enabled:</label>
+  <input type="checkbox" id="validator_enabled" 
+         onclick="document.getElementById('validator').disabled =
+                  !document.getElementById('validator_enabled').checked"> <br>
+  <label for="validator">Validator contract:</label>
+  <input type="text" id="validator" name="validator" value="" disabled> <br>
   </p>
   <label for="redeem_lock_until">Redeem locked until:</label>
   <input type="datetime-local" id="redeem_lock_until" name="redeem_lock_until" value=""> <br><br>
