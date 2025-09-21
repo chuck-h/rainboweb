@@ -878,7 +878,9 @@ function makeMsigProposeQR_step3(serialized_transaction, account, signers) {
         const prop = proposal.actions[0].data.proposal_name;
         note.innerHTML = 
           `msig proposal <a href=https://explorer.telos.net/proposal/${prop}> ${prop} </a>`;
+        QREsr = data.esr;
         qrcode.innerHTML = `<img src=${data.qr}>`;
+        eosioto.style.visibility = 'visible';
         esr.innerHTML = data.esr;
       },
       error: function(xhr, status, error) {
