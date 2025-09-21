@@ -6,15 +6,17 @@
 
 <script type="text/javascript">
 
-
+var QREsr;
 
 function esrGenUrl() {
   const esr_gen_base = "https://cc42.xyz";
   return esr_gen_base + '/join';
 }
 function clearQR() {
-    qrcode.innerHTML = ``;
-    esr.innerHTML = ``;
+    qrcode.innerHTML = '';
+    QREsr = '';
+    eosioto.style.visibility = 'hidden';
+    err.innerHTML = ``;
 }
 
 function getRows(contract, table, scope, action, erroraction=null) {
@@ -63,10 +65,12 @@ async function issueInvite() {
   clearQR();
   result = await getJoinEsr( {sponsor: document.getElementById("sponsor_account").value} )
   if (result.error) {
-    esr.innerHTML = JSON.stringify(result)
+    err.innerHTML = JSON.stringify(result)
   } else {
     qrcode.innerHTML = `<img src=${result.qr}>`;
-    esr.innerHTML = result.esr;
+    QREsr = result.esr;
+    eosioto.style.visibility = 'visible';
+    err.innerHTML = '';
   } 
 }
     
@@ -74,8 +78,13 @@ $(document).ready(async function () {
   $('#sponsor_account').change(function(){
     issueInvite();
   });
+  $("#eosioto").click(function(){
+    window.open(QREsr.replace("esr://", "https://eosio.to/"),'_blank')
+  })
   issueInvite();
 });
+
+  
 </script>
 
 <style>
@@ -161,7 +170,8 @@ label {
 <br>
 
 <div id=qrcode> </div>
-<div id=esr> </div>
+<input type="button" id="eosioto" value="Transaction Link" class="button" style="visibility:hidden;">  
+<div id=err> </div>
 
 </body>
 </html>
